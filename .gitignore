@@ -1,0 +1,14 @@
+# Windows reserved name / accidental file
+nul
+NUL
+
+# envs / IDE
+.venv/
+venv/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.log

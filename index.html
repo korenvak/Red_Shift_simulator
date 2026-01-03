@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Redshift Simulation - 3D Visualization</title>
+    <link rel="stylesheet" href="styles.css?v=17">
+</head>
+<body>
+    <div id="app">
+        <!-- Three.js Canvas Container -->
+        <div id="canvas-container"></div>
+
+        <!-- Control Panel -->
+        <div id="control-panel">
+            <h2>Redshift Simulation</h2>
+
+            <!-- Presets - 4 Famous Objects -->
+            <div class="control-section">
+                <h3>Select Astronomical Object</h3>
+                <div class="preset-buttons famous-presets">
+                    <button class="preset-btn preset-sun" data-preset="SUN" title="The Sun - Pure Doppler Effect">
+                        <span class="preset-icon">☀️</span>
+                        <span class="preset-name">The Sun</span>
+                        <span class="preset-desc">Pure Doppler</span>
+                    </button>
+                    <button class="preset-btn preset-quasar" data-preset="QUASAR_3C273" title="Quasar 3C 273 - Cosmological Redshift">
+                        <span class="preset-icon">💫</span>
+                        <span class="preset-name">Quasar 3C 273</span>
+                        <span class="preset-desc">Cosmological</span>
+                    </button>
+                    <button class="preset-btn preset-andromeda" data-preset="ANDROMEDA" title="Andromeda Galaxy - Approaching us!">
+                        <span class="preset-icon">🌀</span>
+                        <span class="preset-name">Andromeda (M31)</span>
+                        <span class="preset-desc">Blueshift!</span>
+                    </button>
+                    <button class="preset-btn preset-cluster" data-preset="COMA_CLUSTER" title="Coma Cluster - Hubble Flow Example">
+                        <span class="preset-icon">🌌</span>
+                        <span class="preset-name">Coma Cluster</span>
+                        <span class="preset-desc">Mixed Effects</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mode Selection -->
+            <div class="control-section">
+                <h3>Simulation Mode</h3>
+                <div class="mode-buttons">
+                    <button id="btn-cosmological" class="mode-btn active">Cosmological</button>
+                    <button id="btn-doppler" class="mode-btn">Doppler</button>
+                    <button id="btn-mixed" class="mode-btn">Mixed</button>
+                </div>
+            </div>
+
+            <!-- Physics Parameters -->
+            <div class="control-section">
+                <h3>Physics Parameters</h3>
+
+                <div class="slider-group">
+                    <label for="hubble-slider">Hubble Constant (H₀): <span id="hubble-value">70</span> km/s/Mpc</label>
+                    <input type="range" id="hubble-slider" min="0" max="200" value="70">
+                </div>
+
+                <div class="slider-group">
+                    <label for="velocity-slider">Source Velocity: <span id="velocity-value">0</span> km/s</label>
+                    <input type="range" id="velocity-slider" min="-10000" max="10000" value="0">
+                </div>
+
+                <div class="slider-group angle-slider-group">
+                    <label for="angle-slider">Motion Angle θ: <span id="angle-value">0</span>°
+                        <span class="angle-hint">(0°=away, 90°=transverse, 180°=toward)</span>
+                    </label>
+                    <input type="range" id="angle-slider" min="0" max="180" value="0">
+                    <div class="angle-indicator">
+                        <span class="angle-label left">← Away (Redshift)</span>
+                        <span class="angle-label center">⊥ Trans</span>
+                        <span class="angle-label right">Toward (Blueshift) →</span>
+                    </div>
+                </div>
+
+                <div class="slider-group">
+                    <label for="distance-slider">Initial Distance: <span id="distance-value">100</span> Mpc</label>
+                    <input type="range" id="distance-slider" min="10" max="500" value="100">
+                </div>
+
+                <div class="slider-group">
+                    <label for="wavelength-slider">Rest Wavelength: <span id="wavelength-value">656</span> nm (H-α)</label>
+                    <input type="range" id="wavelength-slider" min="380" max="750" value="656">
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="control-section">
+                <h3>Controls</h3>
+                <div class="action-buttons">
+                    <button id="btn-start" class="action-btn start">Start Emission</button>
+                    <button id="btn-pause" class="action-btn pause">Pause</button>
+                    <button id="btn-reset" class="action-btn reset">Reset</button>
+                </div>
+            </div>
+
+            <!-- Status Display -->
+            <div class="control-section status-section">
+                <h3>Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Distance:</span>
+                        <span id="status-distance" class="status-value">100 Mpc</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Scale Factor a(t):</span>
+                        <span id="status-scale" class="status-value">1.000</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Observed λ:</span>
+                        <span id="status-wavelength" class="status-value">656 nm</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Redshift z:</span>
+                        <span id="status-redshift" class="status-value">0.0000</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">z (Doppler radial):</span>
+                        <span id="status-z-doppler" class="status-value">0.0000</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">z (Transverse):</span>
+                        <span id="status-z-transverse" class="status-value">0.0000</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">z (Cosmological):</span>
+                        <span id="status-z-cosmo" class="status-value">0.0000</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Lorentz γ:</span>
+                        <span id="status-gamma" class="status-value">1.0000</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Time Dilation:</span>
+                        <span id="status-time-dilation" class="status-value">1.0000</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Time:</span>
+                        <span id="status-time" class="status-value">0.0 s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wavelength Color Preview -->
+            <div class="control-section">
+                <h3>Wavelength Preview</h3>
+                <div class="wavelength-preview">
+                    <div class="preview-box">
+                        <div class="preview-label">Emitted</div>
+                        <div id="preview-emitted" class="color-box"></div>
+                    </div>
+                    <div class="preview-arrow">→</div>
+                    <div class="preview-box">
+                        <div class="preview-label">Observed</div>
+                        <div id="preview-observed" class="color-box"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emission Spectrum Display -->
+            <div class="control-section spectrum-section">
+                <h3>Spectral Lines</h3>
+                <div id="spectrum-display"></div>
+            </div>
+
+            <!-- Effect Comparison (for MIXED mode) -->
+            <div class="control-section comparison-section" id="comparison-panel">
+                <h3>Effect Comparison</h3>
+                <div class="comparison-bars">
+                    <div class="comparison-row">
+                        <span class="comp-label">Doppler Effect:</span>
+                        <div class="comp-bar-container">
+                            <div id="bar-doppler" class="comp-bar doppler-bar"></div>
+                        </div>
+                        <span id="comp-doppler-value" class="comp-value">0%</span>
+                    </div>
+                    <div class="comparison-row">
+                        <span class="comp-label">Cosmological:</span>
+                        <div class="comp-bar-container">
+                            <div id="bar-cosmo" class="comp-bar cosmo-bar"></div>
+                        </div>
+                        <span id="comp-cosmo-value" class="comp-value">0%</span>
+                    </div>
+                </div>
+                <div class="comparison-note">
+                    <em>In reality, these effects multiply: (1+z) = (1+z<sub>D</sub>)(1+z<sub>C</sub>)</em>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graph Panel -->
+        <div id="graph-panel">
+            <canvas id="wavelength-chart"></canvas>
+        </div>
+
+        <!-- Info Overlay -->
+        <div id="info-overlay">
+            <div class="info-content">
+                <h4>About Redshift</h4>
+                <p><strong>Doppler Effect:</strong> Motion of the source relative to observer shifts the wavelength.</p>
+                <p><strong>Cosmological Expansion:</strong> Space itself stretches, increasing wavelength of light in transit.</p>
+                <p>Press <kbd>H</kbd> to toggle this info.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Map for ES Modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Main Application - v17: 4 Presets, all English, normalized distances -->
+    <script type="module" src="src/main.js?v=17"></script>
+</body>
+</html>
