@@ -1,224 +1,191 @@
-# Redshift Physics Simulation - Interactive GUI Edition
+# Redshift Physics Simulation - 3D Interactive Edition
 
-An interactive PyGame simulation that visualizes and distinguishes between **Cosmological Redshift** (expansion of space) and **Doppler Redshift** (peculiar velocity) with a professional, modern interface.
+An interactive Three.js simulation that visualizes and distinguishes between **Cosmological Redshift** (expansion of space), **Doppler Redshift** (peculiar velocity), and **Transverse Doppler Effect** (time dilation) with realistic 3D astronomical objects.
+
+## Features
+
+- **4 Famous Astronomical Presets**: Sun, Quasar 3C 273, Andromeda Galaxy, Coma Cluster
+- **Unique 3D Objects**: Star with corona, Quasar with jets, Galaxy spiral, Cluster with gas halo
+- **Full Relativistic Physics**: Proper SR and GR formulas
+- **Real-time Spectrum Display**: Emission/absorption line visualization
+- **Effect Comparison**: Side-by-side Doppler vs Cosmological contribution
 
 ## Installation
 
-Install the required dependencies:
-
 ```bash
-pip install pygame numpy
+# Install dependencies
+npm install
+
+# Run local server
+npm run dev
 ```
 
-Or if using the virtual environment:
+Or simply open `index.html` in a modern browser (requires ES modules support).
 
-```bash
-venv\Scripts\activate
-pip install pygame numpy
+## Physics Implementation
+
+### Relativistic Doppler Effect (Special Relativity)
+
+The simulation uses the **full relativistic Doppler formula**, not the classical approximation:
+
+```
+z_doppler = sqrt((1+β)/(1-β)) - 1    where β = v/c
 ```
 
-## Running the Simulation
+For motion at an angle θ to the line of sight (including transverse Doppler):
 
-```bash
-python redshift_simulation.py
+```
+λ_obs/λ_emit = γ(1 + β·cos(θ))    where γ = 1/√(1-β²)
 ```
 
-Or with the virtual environment:
-
-```bash
-venv\Scripts\python redshift_simulation.py
+At θ = 90° (perpendicular motion), this reduces to the **transverse Doppler effect**:
+```
+z_transverse = γ - 1 = 1/√(1-β²) - 1
 ```
 
-## New Features
+This is a purely relativistic effect due to time dilation - even objects moving perpendicular to our line of sight appear redshifted.
 
-### Modern Interactive GUI
-- **70/30 Split Layout**: Visualization area (70%) with dedicated control panel (30%)
-- **Mouse-Controlled Sliders**: Drag sliders to adjust parameters in real-time
-- **Big Visible Buttons**: Click "EMIT PHOTON" and "RESET" buttons
-- **Sci-Fi Dark Theme**: Professional dark mode with neon accent colors
-- **Real-Time Data Readout**: Live display of redshift calculations
+### Cosmological Redshift
 
-### Enhanced Visualizations
-- **Wave Packets**: Photons shown as Gaussian-enveloped sine waves, not simple lines
-- **Color Transitions**: Photons visibly change color from blue → green → yellow → red as they redshift
-- **Gaussian Spectral Lines**: Bell curves instead of pixel lines for realistic spectroscopy
-- **Semi-Transparent Fills**: Professional "scientific instrument" look
-- **Faint Grid**: Subtle expanding spacetime grid that doesn't distract
-- **Enhanced Galaxy Sprite**: Multi-layer circles with velocity vectors
+Light traveling through expanding space gets stretched:
 
-## Physics Model
-
-### Scale Factor and Expansion
-- **Scale Factor a(t)**: Starts at 1.0 and grows based on the Hubble parameter H₀
-- **Update**: `a(t) = a(t_prev) + H₀ · dt`
-
-### Galaxy Position
-The physical position combines expansion and peculiar motion:
 ```
-X_source(t) = (X_comoving · a(t)) + (v_peculiar · t)
+z_cosmo = a_obs/a_emit - 1
 ```
 
-### Photon Redshift
-Photons experience two types of redshift:
+Where:
+- `a_obs` = scale factor when light is observed (current value)
+- `a_emit` = scale factor when light was emitted (smaller in the past)
 
-1. **Doppler Redshift** (applied once at emission):
-   - `λ_emit = λ_rest · (1 + v_peculiar/c)`
-   - Due to the galaxy's motion through space
+### Scale Factor Evolution
 
-2. **Cosmological Redshift** (applied continuously):
-   - `λ_current = λ_prev · (a(t) / a(t_prev))`
-   - Due to the expansion of space itself
+The simulation models a **de Sitter universe** (dark energy dominated) with exponential expansion:
 
-### Redshift Calculations
-- **z_doppler** = v/c
-- **z_cosmo** = a(now)/a(emit) - 1
-- **z_total** = (1 + z_cosmo)(1 + z_doppler) - 1
+```
+a(t) = a(0) · exp(H · t)
+```
 
-## Display Layout
+Where H is the Hubble parameter. This is the proper solution to the Friedmann equation for a universe dominated by dark energy (Λ).
 
-### Left Side (70%): Visualization
+### Combined Redshift
 
-#### Top Half: Universe Expansion
-- **Observer**: Neon green target icon on the left (fixed at x=0)
-- **Expanding Grid**: Faint vertical lines that spread apart as space expands
-- **Galaxy**: Multi-layer blue sprite showing the source position
-- **Peculiar Velocity Arrow**: Orange arrow indicating galaxy motion through space
-- **Photon Wave Packets**: Traveling Gaussian-enveloped sine waves with dynamic color
+When both effects are present:
 
-#### Bottom Half: Spectral Analysis
-- **X-axis**: Wavelength (nm) from 500-900
-- **Y-axis**: Intensity
-- **Rest Wavelength**: Semi-transparent green Gaussian curve (H-alpha at 656nm)
-- **Observed Wavelength**: Solid colored Gaussian curve that shifts in real-time
-- **Filled Areas**: Semi-transparent color fills under curves
+```
+(1 + z_total) = (1 + z_doppler) · (1 + z_cosmo) · (1 + z_grav)
+```
 
-### Right Side (30%): Control Dashboard
+This is NOT a simple addition - redshifts multiply!
 
-#### Interactive Sliders
-1. **Hubble Parameter H₀** (0-200)
-   - Controls expansion rate of the universe
-   - Drag the cyan handle to adjust
+## Unit Conventions
 
-2. **Peculiar Velocity** (-1000 to +1000 km/s)
-   - Controls galaxy's motion through space
-   - Negative values create blueshift
-   - Positive values increase redshift
+| Quantity | Units | Notes |
+|----------|-------|-------|
+| Distance | Mpc | Megaparsecs (1 Mpc ≈ 3.26 million light-years) |
+| Velocity | km/s | Kilometers per second |
+| H0 | km/s/Mpc | Hubble constant (default: 70) |
+| Wavelength | nm | Nanometers (visible: 380-780 nm) |
 
-3. **Initial Distance** (100-800)
-   - Sets the starting comoving distance of the galaxy
+### Visual Scaling
 
-#### Buttons
-- **EMIT PHOTON** (Green): Click to emit a photon from the galaxy
-- **RESET** (Red): Click to reset the simulation
+Real cosmological expansion is far too slow to visualize (H0 ≈ 2×10⁻¹⁸ s⁻¹). The simulation uses a **visual scale factor** of 500 to make expansion perceptible on human timescales. This doesn't affect the physics - it just speeds up the visualization.
 
-#### Redshift Data Panel
-Real-time display showing:
-- **z_doppler**: Doppler component with velocity
-- **z_cosmo**: Cosmological component with scale factors
-- **z_total**: Combined total redshift
+## Simulation Modes
 
-## How to Use
+### 1. Cosmological Mode
+- Space expands (grid stretches)
+- Redshift from expansion only
+- No peculiar velocity effects
+- Best for: Understanding Hubble's Law
 
-### Getting Started
-1. Launch the simulation
-2. Adjust the **Hubble Parameter** slider to control expansion speed
-3. Adjust the **Peculiar Velocity** slider to give the galaxy motion
-4. Click **EMIT PHOTON** to send a photon toward the observer
-5. Watch the photon's color change as it travels through expanding space
+### 2. Doppler Mode
+- No space expansion
+- Redshift/blueshift from motion only
+- Shows transverse Doppler effect at angles
+- Best for: Understanding relativistic Doppler
 
-### Experiments to Try
+### 3. Mixed Mode
+- Both expansion and motion
+- Ghost galaxy shows "Hubble flow" position
+- Comparison bars show relative contributions
+- Best for: Real astronomical scenarios
 
-#### Experiment 1: Pure Cosmological Redshift
-1. Set **Peculiar Velocity** to 0
-2. Set **Hubble Parameter** to ~100
-3. Click **EMIT PHOTON**
-4. **Observe**: Photon continuously redshifts (color changes) during travel
-5. **Data Panel**: z_doppler ≈ 0, all redshift is cosmological
+## Famous Object Presets
 
-#### Experiment 2: Pure Doppler Redshift
-1. Click **RESET**
-2. Set **Hubble Parameter** to ~10 (minimal expansion)
-3. Set **Peculiar Velocity** to ~500 km/s
-4. Click **EMIT PHOTON** immediately
-5. **Observe**: Photon emitted already shifted, minimal additional change
-6. **Data Panel**: z_cosmo is small, most redshift is Doppler
+| Object | Type | Mode | Notes |
+|--------|------|------|-------|
+| The Sun | Star | Doppler | Nearby - pure motion effects |
+| Quasar 3C 273 | Quasar | Cosmological | z ≈ 0.158, pure expansion |
+| Andromeda (M31) | Galaxy | Doppler | Blueshifted! Approaching at 300 km/s |
+| Coma Cluster | Cluster | Mixed | z ≈ 0.023, recession + internal motion |
 
-#### Experiment 3: Combined Effects
-1. Click **RESET**
-2. Set **Hubble Parameter** to ~100
-3. Set **Peculiar Velocity** to ~300 km/s
-4. Set **Initial Distance** to ~600
-5. Click **EMIT PHOTON**
-6. **Observe**: Initial Doppler shift + continuous cosmological stretching
-7. **Data Panel**: Both z_doppler and z_cosmo contribute significantly
+## Keyboard Shortcuts
 
-#### Experiment 4: Blueshift
-1. Click **RESET**
-2. Set **Hubble Parameter** to ~20
-3. Set **Peculiar Velocity** to **-500** km/s (negative!)
-4. Click **EMIT PHOTON**
-5. **Observe**: Photon starts blue-shifted, but expansion fights it
-6. **Spectral Graph**: Observed line starts LEFT of rest line, then moves right
-
-## Visual Design
-
-### Color Scheme
-- **Background**: Dark space theme (near-black)
-- **Panel**: Dark gray with subtle borders
-- **Neon Accents**:
-  - Cyan: UI elements, scale factor data
-  - Green: Observer, rest wavelength
-  - Blue: Galaxy
-  - Orange: Peculiar velocity
-  - Magenta: Cosmological redshift
-- **Text**: Light gray/white for readability
-
-### Typography
-- Uses system font (Segoe UI on Windows) with fallback
-- Large headings (24pt) for sections
-- Medium (20pt) for data
-- Small (16pt) for labels
-
-## Technical Details
-
-- **Frame Rate**: 60 FPS
-- **Resolution**: 1400x900 pixels
-- **Speed of Light**: 299,792.458 km/s
-- **H-alpha Rest Wavelength**: 656 nm
-- **Visible Spectrum Range**: 380-750 nm (for color mapping)
+| Key | Action |
+|-----|--------|
+| Space | Pause/Resume |
+| R | Reset simulation |
+| H | Toggle help overlay |
+| 1 | Cosmological mode |
+| 2 | Doppler mode |
+| 3 | Mixed mode |
 
 ## Code Structure
 
-### GUI Widgets
-- **Slider**: Interactive draggable slider with handle
-- **Button**: Clickable button with hover effect
+```
+src/
+├── core/
+│   ├── physics.js    # All physics formulas (SR, GR, cosmology)
+│   ├── universe.js   # Scale factor evolution
+│   └── wave.js       # Wave train propagation
+├── visual/
+│   ├── scene.js      # Three.js scene management
+│   ├── objects.js    # 3D astronomical objects (Star, Quasar, Galaxy, Cluster)
+│   ├── grid.js       # Expanding spacetime grid
+│   └── wave-renderer.js  # Sine wave with color shift
+└── ui/
+    ├── controls.js   # Slider and button handling
+    ├── presets.js    # Preset configurations
+    ├── spectrum.js   # Emission/absorption spectrum display
+    └── charts.js     # Wavelength vs time chart
+```
 
-### Physics Classes
-- **Universe**: Manages scale factor and cosmic time
-- **Source**: Galaxy with comoving position and peculiar velocity
-- **Photon**: Wave packet with Doppler and cosmological redshift
+## Key Formulas Reference
 
-### Display System
-- **Display**: Renders visualization and GUI
-  - Spacetime view with wave packets
-  - Spectral graph with Gaussian curves
-  - Control panel with interactive widgets
-  - Real-time data readout
+### Lorentz Factor
+```
+γ = 1/√(1 - v²/c²)
+```
+
+### Schwarzschild Radius (for gravitational redshift)
+```
+r_s = 2GM/c²
+```
+
+### Gravitational Redshift
+```
+z_grav = 1/√(1 - r_s/r) - 1
+```
+
+### Hubble's Law (low-z approximation)
+```
+v = H0 · d
+z ≈ v/c = H0·d/c
+```
 
 ## Educational Value
 
 This simulation demonstrates:
 
-1. **Cosmological Redshift**: Space itself stretching, continuously affecting photons
-2. **Doppler Redshift**: Motion through space, applied at emission
-3. **Combined Effects**: How both types add up in real observations
-4. **Visual Intuition**: Color changes make redshift tangible
-5. **Quantitative Data**: Precise measurements shown in real-time
+1. **Relativistic effects are not intuitive** - The classical z = v/c underestimates redshift at high velocities
+2. **Transverse Doppler is real** - Moving objects appear redshifted even when moving perpendicular to our view
+3. **Cosmological redshift ≠ Doppler** - Space itself expands, not just motion through space
+4. **Effects multiply, not add** - (1+z) factors combine multiplicatively
 
-Perfect for:
-- Astronomy classes
-- Physics demonstrations
-- Self-study of cosmology
-- Understanding observational astronomy
+## License
 
-# Red_Shift_simulator
+MIT License
+
+## Contributing
+
+Pull requests welcome! Please ensure physics formulas match the documented equations.

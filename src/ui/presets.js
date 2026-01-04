@@ -20,7 +20,9 @@ export const SourceType = {
     STAR: 'star',           // Sun-like star
     QUASAR: 'quasar',       // Distant quasar with jets
     GALAXY: 'galaxy',       // Spiral galaxy (default)
-    CLUSTER: 'cluster'      // Galaxy cluster
+    CLUSTER: 'cluster',     // Galaxy cluster
+    PULSAR: 'pulsar',       // Rotating neutron star with beams
+    BINARY: 'binary'        // Binary star system
 };
 
 /**
@@ -101,6 +103,42 @@ export const PRESETS = {
         color: 0xffaa44,
         size: 2.5,
         glowColor: 0x886622
+    },
+
+    // 5. Crab Pulsar - Rapidly rotating neutron star
+    PULSAR: {
+        id: 'PULSAR',
+        name: 'Crab Pulsar',
+        description: 'Rapidly rotating neutron star - periodic Doppler shifts',
+        // Real: 2 kpc ≈ 0.006 Mpc, Visual: 100 Mpc (normalized)
+        distance: 100,
+        velocity: 5000,         // High velocity for visible effect
+        redshift: 0.017,
+        hubble: 70,
+        wavelength: CONSTANTS.WAVELENGTH_HALPHA,
+        mode: 'doppler',        // Pure Doppler from pulsar rotation/motion
+        sourceType: SourceType.PULSAR,
+        color: 0x88aaff,
+        size: 1.2,
+        glowColor: 0x4466aa
+    },
+
+    // 6. Binary Star System - Two stars orbiting common center
+    BINARY_STAR: {
+        id: 'BINARY_STAR',
+        name: 'Binary Star System',
+        description: 'Two stars in orbit - oscillating Doppler shift',
+        // Visual distance for demonstration
+        distance: 90,
+        velocity: 8000,         // Orbital velocity for visible effect
+        redshift: 0.027,
+        hubble: 70,
+        wavelength: CONSTANTS.WAVELENGTH_HALPHA,
+        mode: 'doppler',        // Doppler from orbital motion
+        sourceType: SourceType.BINARY,
+        color: 0xffcc66,
+        size: 1.5,
+        glowColor: 0xaa8833
     }
 };
 
@@ -133,4 +171,4 @@ export function getPresetDisplayInfo(preset) {
     };
 }
 
-console.log('Presets.js v2.0 loaded - 3 presets available');
+console.log('Presets.js v3.0 loaded - 6 presets available');

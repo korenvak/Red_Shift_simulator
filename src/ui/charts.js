@@ -22,6 +22,15 @@ export class WavelengthChart {
             restWavelength: CONSTANTS.WAVELENGTH_HALPHA
         };
 
+        // Binary star mode
+        this.binaryMode = false;
+        this.binaryData = {
+            star1Wavelength: [],
+            star2Wavelength: [],
+            combinedWavelength: [],
+            eclipseDepth: []
+        };
+
         this.init();
     }
 
@@ -64,6 +73,44 @@ export class WavelengthChart {
                         fill: false,
                         pointRadius: 0,
                         order: 3
+                    },
+                    // Binary star datasets (hidden by default)
+                    {
+                        label: 'Primary Star (λ₁)',
+                        data: [],
+                        borderColor: '#ffdd44',
+                        backgroundColor: 'rgba(255, 221, 68, 0.2)',
+                        borderWidth: 2.5,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        hidden: true,
+                        order: 0
+                    },
+                    {
+                        label: 'Secondary Star (λ₂)',
+                        data: [],
+                        borderColor: '#aaccff',
+                        backgroundColor: 'rgba(170, 204, 255, 0.2)',
+                        borderWidth: 2.5,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        hidden: true,
+                        order: 0
+                    },
+                    {
+                        label: 'Eclipse Depth',
+                        data: [],
+                        borderColor: '#ff4444',
+                        backgroundColor: 'rgba(255, 68, 68, 0.3)',
+                        borderWidth: 1,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        hidden: true,
+                        yAxisID: 'y1',
+                        order: 4
                     }
                 ]
             },
@@ -181,6 +228,29 @@ export class WavelengthChart {
                         grid: {
                             color: 'rgba(80, 80, 120, 0.25)'
                         }
+                    },
+                    // Secondary Y-axis for eclipse depth (0-1)
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        display: false, // Hidden by default, shown in binary mode
+                        min: 0,
+                        max: 1,
+                        title: {
+                            display: true,
+                            text: 'Eclipse Depth',
+                            color: '#ff4444',
+                            font: { size: 10 }
+                        },
+                        ticks: {
+                            color: '#ff6666',
+                            callback: function(value) {
+                                return (value * 100).toFixed(0) + '%';
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
                     }
                 }
             }
@@ -234,6 +304,109 @@ export class WavelengthChart {
     }
 
     /**
+     * Enable/disable binary star mode
+     * In binary mode, shows individual star wavelengths and eclipse depth
+     * @param {boolean} enabled
+     */
+    setBinaryMode(enabled) {
+        this.binaryMode = enabled;
+
+        // Toggle dataset visibility
+        // Datasets: 0=Total, 1=Doppler, 2=Rest, 3=Star1, 4=Star2, 5=Eclipse
+        this.chart.data.datasets[0].hidden = enabled; // Hide total in binary mode
+        this.chart.data.datasets[1].hidden = enabled; // Hide doppler-only
+        this.chart.data.datasets[2].hidden = false;   // Always show rest wavelength
+        this.chart.data.datasets[3].hidden = !enabled; // Show star 1
+        this.chart.data.datasets[4].hidden = !enabled; // Show star 2
+        this.chart.data.datasets[5].hidden = !enabled; // Show eclipse depth
+
+        // Toggle secondary Y-axis
+        this.chart.options.scales.y1.display = enabled;
+
+        // Update legend labels for binary mode
+        if (enabled) {
+            this.chart.data.datasets[2].label = 'Rest Wavelength (λ₀)';
+        }
+
+        this.chart.update('none');
+    }
+
+    /**
+     * Add data point for binary star system
+     * @param {number} time - Current time
+     * @param {number} star1Wavelength - Primary star observed wavelength
+     * @param {number} star2Wavelength - Secondary star observed wavelength
+     * @param {number} restWavelength - Rest wavelength
+     * @param {number} eclipseDepth - Eclipse depth (0-1)
+     * @param {boolean} star1Eclipsed - Is star 1 currently eclipsed
+     * @param {boolean} star2Eclipsed - Is star 2 currently eclipsed
+     */
+    addBinaryDataPoint(time, star1Wavelength, star2Wavelength, restWavelength, eclipseDepth = 0, star1Eclipsed = false, star2Eclipsed = false) {
+        // Store data
+        this.data.time.push(time);
+        this.binaryData.star1Wavelength.push(star1Wavelength);
+        this.binaryData.star2Wavelength.push(star2Wavelength);
+        this.binaryData.eclipseDepth.push(eclipseDepth);
+
+        // Calculate combined wavelength (luminosity-weighted average, accounting for eclipses)
+        const lum1 = star1Eclipsed ? (1 - eclipseDepth) : 1;
+        const lum2 = star2Eclipsed ? (1 - eclipseDepth) : 1;
+        const totalLum = lum1 + lum2;
+        const combinedWavelength = totalLum > 0 ?
+            (star1Wavelength * lum1 + star2Wavelength * lum2) / totalLum :
+            restWavelength;
+        this.binaryData.combinedWavelength.push(combinedWavelength);
+
+        // Update chart labels
+        this.chart.data.labels.push(time.toFixed(1));
+
+        // Update standard datasets (for compatibility)
+        this.chart.data.datasets[0].data.push({ x: time, y: combinedWavelength });
+        this.chart.data.datasets[1].data.push({ x: time, y: combinedWavelength });
+        this.chart.data.datasets[2].data.push({ x: time, y: restWavelength });
+
+        // Update binary star datasets
+        // Apply visual dimming for eclipsed stars
+        this.chart.data.datasets[3].data.push({ x: time, y: star1Wavelength });
+        this.chart.data.datasets[4].data.push({ x: time, y: star2Wavelength });
+        this.chart.data.datasets[5].data.push({ x: time, y: eclipseDepth });
+
+        // Update line styles based on eclipse state
+        // Dim the eclipsed star's line
+        if (star1Eclipsed && eclipseDepth > 0.3) {
+            this.chart.data.datasets[3].borderColor = 'rgba(255, 221, 68, 0.4)';
+            this.chart.data.datasets[3].borderDash = [4, 4];
+        } else {
+            this.chart.data.datasets[3].borderColor = '#ffdd44';
+            this.chart.data.datasets[3].borderDash = [];
+        }
+
+        if (star2Eclipsed && eclipseDepth > 0.3) {
+            this.chart.data.datasets[4].borderColor = 'rgba(170, 204, 255, 0.4)';
+            this.chart.data.datasets[4].borderDash = [4, 4];
+        } else {
+            this.chart.data.datasets[4].borderColor = '#aaccff';
+            this.chart.data.datasets[4].borderDash = [];
+        }
+
+        // Trim old data
+        if (this.data.time.length > this.maxDataPoints) {
+            this.data.time.shift();
+            this.binaryData.star1Wavelength.shift();
+            this.binaryData.star2Wavelength.shift();
+            this.binaryData.combinedWavelength.shift();
+            this.binaryData.eclipseDepth.shift();
+
+            this.chart.data.labels.shift();
+            for (let i = 0; i < 6; i++) {
+                this.chart.data.datasets[i].data.shift();
+            }
+        }
+
+        this.chart.update('none');
+    }
+
+    /**
      * Get CSS color from wavelength
      * @param {number} wavelength
      * @returns {string}
@@ -251,12 +424,24 @@ export class WavelengthChart {
         this.data.wavelengthTotal = [];
         this.data.wavelengthDopplerOnly = [];
 
+        // Clear binary star data
+        this.binaryData.star1Wavelength = [];
+        this.binaryData.star2Wavelength = [];
+        this.binaryData.combinedWavelength = [];
+        this.binaryData.eclipseDepth = [];
+
         this.chart.data.labels = [];
         this.chart.data.datasets.forEach(ds => ds.data = []);
 
         // Reset colors
         this.chart.data.datasets[0].borderColor = '#00ffff';
         this.chart.data.datasets[0].backgroundColor = 'rgba(0, 255, 255, 0.15)';
+
+        // Reset binary star line styles
+        this.chart.data.datasets[3].borderColor = '#ffdd44';
+        this.chart.data.datasets[3].borderDash = [];
+        this.chart.data.datasets[4].borderColor = '#aaccff';
+        this.chart.data.datasets[4].borderDash = [];
 
         this.chart.update('none');
     }

@@ -166,6 +166,25 @@ body {
     border: none;
 }
 
+/* Velocity beta display */
+.velocity-beta {
+    font-size: 0.75rem;
+    color: var(--accent-magenta);
+    margin-left: 5px;
+}
+
+/* Velocity scale indicators */
+.velocity-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+
+.velocity-scale span:first-child { color: #6060ff; }
+.velocity-scale span:last-child { color: #ff6060; }
+
 /* Action Buttons */
 .action-buttons {
     display: flex;
@@ -484,6 +503,22 @@ body {
 .preset-cluster .preset-name { color: #ffcc66; }
 .preset-cluster .preset-desc { color: #ff8844; }
 
+/* Pulsar preset - cyan/blue pulsing */
+.preset-pulsar:hover, .preset-pulsar.active {
+    border-color: #88aaff !important;
+    box-shadow: 0 0 20px rgba(136, 170, 255, 0.4) !important;
+}
+.preset-pulsar .preset-name { color: #aaccff; }
+.preset-pulsar .preset-desc { color: #88aaff; }
+
+/* Binary Star preset - gold/warm */
+.preset-binary:hover, .preset-binary.active {
+    border-color: #ffcc66 !important;
+    box-shadow: 0 0 20px rgba(255, 204, 102, 0.4) !important;
+}
+.preset-binary .preset-name { color: #ffdd88; }
+.preset-binary .preset-desc { color: #ffaa44; }
+
 .preset-select option {
     background: var(--bg-dark);
     color: var(--text-primary);
@@ -695,4 +730,223 @@ body {
     color: var(--text-secondary);
     text-align: center;
     opacity: 0.8;
+}
+
+/* ==========================================
+   Formula Overlay (Educational Display)
+   ========================================== */
+#formula-overlay {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 50;
+    pointer-events: none;
+}
+
+.formula-card {
+    background: rgba(10, 10, 20, 0.9);
+    border: 1px solid var(--accent-cyan);
+    border-radius: 10px;
+    padding: 12px 16px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+    opacity: 0.3;
+    transform: translateX(-10px);
+    transition: all 0.4s ease;
+    max-width: 280px;
+}
+
+.formula-card.active {
+    opacity: 1;
+    transform: translateX(0);
+    border-color: var(--accent-magenta);
+    box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+}
+
+.formula-card.hidden {
+    display: none;
+}
+
+.formula-title {
+    font-size: 0.75rem;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}
+
+.formula-equation {
+    font-size: 1.3rem;
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+    color: white;
+    text-shadow: 0 0 10px var(--accent-cyan);
+    margin-bottom: 4px;
+}
+
+.formula-where {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.formula-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 0.8rem;
+    font-family: 'Consolas', monospace;
+}
+
+.formula-values span {
+    color: var(--text-secondary);
+}
+
+.formula-values span span {
+    color: var(--accent-cyan);
+    font-weight: bold;
+}
+
+/* ==========================================
+   Time Machine Control
+   ========================================== */
+#time-control {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+}
+
+.time-control-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(18, 18, 31, 0.95);
+    border: 1px solid var(--accent-cyan);
+    border-radius: 25px;
+    padding: 8px 20px;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.time-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: var(--bg-control);
+    color: var(--text-primary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.time-btn:hover {
+    background: var(--accent-cyan);
+    color: var(--bg-dark);
+    box-shadow: 0 0 15px var(--accent-cyan);
+    transform: scale(1.1);
+}
+
+.time-btn:active {
+    transform: scale(0.95);
+}
+
+.time-btn.screenshot-btn {
+    background: linear-gradient(135deg, #00b050 0%, #008040 100%);
+    margin-left: 10px;
+}
+
+.time-btn.screenshot-btn:hover {
+    background: linear-gradient(135deg, #00d060 0%, #00a050 100%);
+    box-shadow: 0 0 15px rgba(0, 176, 80, 0.5);
+}
+
+#time-slider {
+    width: 200px;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--bg-dark);
+    border-radius: 3px;
+    outline: none;
+}
+
+#time-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-magenta);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px var(--accent-magenta);
+}
+
+#time-slider:disabled {
+    opacity: 0.5;
+}
+
+#time-slider:disabled::-webkit-slider-thumb {
+    background: var(--text-secondary);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+#time-display {
+    font-family: 'Consolas', monospace;
+    font-size: 0.9rem;
+    color: var(--accent-cyan);
+    min-width: 60px;
+    text-align: center;
+}
+
+/* ==========================================
+   Screenshot Flash Effect
+   ========================================== */
+#screenshot-flash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+#screenshot-flash.flash {
+    animation: flashAnimation 0.3s ease-out;
+}
+
+@keyframes flashAnimation {
+    0% { opacity: 0.8; }
+    100% { opacity: 0; }
+}
+
+/* Toast notification for screenshot */
+.toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 176, 80, 0.95);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.toast.show {
+    opacity: 1;
 }

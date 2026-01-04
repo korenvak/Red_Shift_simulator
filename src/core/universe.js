@@ -60,6 +60,14 @@ export class Universe {
     /**
      * Update universe state
      * @param {number} dt - Time step in seconds
+     *
+     * Physics: Scale factor evolution in de Sitter (dark-energy dominated) universe
+     *
+     * The Hubble parameter H0 has units of km/s/Mpc ≈ 2.27×10⁻¹⁸ s⁻¹ for H0=70
+     * For a de Sitter universe: ȧ/a = H (constant) → a(t) = a(0)·exp(H·t)
+     *
+     * For visualization, we scale H0 to make expansion visible on human timescales:
+     * H0_sim = H0 / VISUAL_SCALE_FACTOR (dimensionless, per simulation second)
      */
     update(dt) {
         if (!this.isRunning || this.isPaused) {
@@ -70,22 +78,19 @@ export class Universe {
 
         // Only update scale factor in cosmological or mixed mode
         if (this.mode === SimulationMode.COSMOLOGICAL || this.mode === SimulationMode.MIXED) {
-            // Hubble parameter evolution
-            // Using da/dt = H0 * a for exponential expansion (de Sitter)
-            // Or da/dt = H0 for linear expansion (simpler visualization)
+            // H0 conversion for visualization:
+            // Real H0 = 70 km/s/Mpc ≈ 2.27×10⁻¹⁸ s⁻¹ (far too slow to visualize)
+            // We use a visual scaling factor to make expansion perceptible
+            // H0_sim ≈ H0 / 500 gives ~0.14 per second for H0=70
+            const VISUAL_SCALE_FACTOR = 500;
+            const H0_sim = this.H0 / VISUAL_SCALE_FACTOR;
 
-            // Normalized H0 for visualization (H0 in km/s/Mpc -> per simulation second)
-            const H0_sim = this.H0 / 500; // Tuned for good visual effect
+            // Proper exponential evolution: a(t) = a(0) * exp(H0_sim * t)
+            // Using multiplicative update: a(t+dt) = a(t) * exp(H0_sim * dt)
+            // This is exact for constant H (de Sitter universe)
+            this.scaleFactor *= Math.exp(H0_sim * dt);
 
-            // Linear expansion model (easier to visualize)
-            // a(t) = a0 + H0_sim * t
-            // this.scaleFactor = 1.0 + H0_sim * this.time;
-
-            // Exponential model (more realistic but can diverge)
-            // da = a * H0_sim * dt
-            this.scaleFactor *= (1 + H0_sim * dt);
-
-            // Clamp to prevent extreme values
+            // Clamp to prevent extreme values (a > 10 is beyond most visualizations)
             this.scaleFactor = Math.min(this.scaleFactor, 10.0);
         } else {
             // Doppler-only mode: space doesn't expand
@@ -106,6 +111,9 @@ export class Universe {
      * Get scale factor at a past time (for in-flight photons)
      * @param {number} t - Past time
      * @returns {number} Scale factor at that time
+     *
+     * For exponential expansion: a(t) = a(0)·exp(H·t)
+     * Given a(now), we can find a(t_past) = a(now) / exp(H·(now - t_past))
      */
     getScaleFactorAtTime(t) {
         if (t >= this.time) return this.scaleFactor;
@@ -113,10 +121,12 @@ export class Universe {
 
         // For cosmological/mixed mode, reconstruct past scale factor
         if (this.mode === SimulationMode.COSMOLOGICAL || this.mode === SimulationMode.MIXED) {
-            const H0_sim = this.H0 / 500;
+            const VISUAL_SCALE_FACTOR = 500;
+            const H0_sim = this.H0 / VISUAL_SCALE_FACTOR;
 
-            // Inverse of exponential growth: a(t) = a(now) / exp(H0_sim * (now - t))
-            return this.scaleFactor / Math.exp(H0_sim * (this.time - t));
+            // Inverse of exponential growth: a(t_past) = a(now) · exp(-H0_sim · Δt)
+            // where Δt = (now - t_past) > 0
+            return this.scaleFactor * Math.exp(-H0_sim * (this.time - t));
         }
 
         return 1.0;

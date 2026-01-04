@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { SourceType } from '../ui/presets.js';
 
 // Log that new version is loaded
-console.log('Objects.js v3.0 loaded - Star, Quasar, Galaxy sources');
+console.log('Objects.js v4.0 loaded - Star, Quasar, Galaxy, Pulsar, Binary sources');
 
 /**
  * Observer visualization - Earth with atmosphere
@@ -1641,6 +1641,645 @@ export class ClusterObject {
 }
 
 /**
+ * Pulsar visualization - Rotating neutron star with radiation beams
+ */
+export class PulsarObject {
+    constructor(scene) {
+        this.scene = scene;
+        this.group = new THREE.Group();
+        this.velocityArrow = null;
+        this.beams = [];
+        this.rotationSpeed = 3;
+
+        this.create();
+        this.scene.add(this.group);
+    }
+
+    create() {
+        // Neutron star core
+        const coreGeometry = new THREE.SphereGeometry(8, 32, 32);
+        const coreMaterial = new THREE.MeshBasicMaterial({ color: 0xaaddff });
+        this.core = new THREE.Mesh(coreGeometry, coreMaterial);
+        this.group.add(this.core);
+
+        // Glow
+        const glowGeometry = new THREE.SphereGeometry(12, 32, 32);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x8888ff, transparent: true, opacity: 0.5,
+            blending: THREE.AdditiveBlending
+        });
+        this.group.add(new THREE.Mesh(glowGeometry, glowMaterial));
+
+        // Radiation beams
+        this.createBeams();
+        this.createVelocityArrow();
+        this.createLabel('Crab Pulsar', 0x88aaff);
+    }
+
+    createBeams() {
+        const beamGroup = new THREE.Group();
+        for (let i = 0; i < 2; i++) {
+            const beamGeometry = new THREE.ConeGeometry(5, 60, 16, 1, true);
+            const beamMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff, transparent: true, opacity: 0.6,
+                blending: THREE.AdditiveBlending, side: THREE.DoubleSide
+            });
+            const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+            beam.position.y = i === 0 ? 35 : -35;
+            if (i === 1) beam.rotation.x = Math.PI;
+            beamGroup.add(beam);
+        }
+        beamGroup.rotation.z = Math.PI / 6;
+        this.beamGroup = beamGroup;
+        this.group.add(beamGroup);
+    }
+
+    createLabel(text, color) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.font = 'Bold 28px Arial';
+        ctx.fillStyle = '#' + new THREE.Color(color).getHexString();
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 128, 40);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(canvas), transparent: true
+        }));
+        sprite.position.set(0, 80, 0);
+        sprite.scale.set(50, 12, 1);
+        this.group.add(sprite);
+    }
+
+    createVelocityArrow() {
+        const shaft = new THREE.Mesh(
+            new THREE.CylinderGeometry(2, 2, 50, 16),
+            new THREE.MeshPhongMaterial({ color: 0xff8000, emissive: 0x402000 })
+        );
+        shaft.rotation.z = -Math.PI / 2; shaft.position.x = 25;
+        const head = new THREE.Mesh(
+            new THREE.ConeGeometry(5, 15, 16),
+            new THREE.MeshPhongMaterial({ color: 0xff8000, emissive: 0x402000 })
+        );
+        head.rotation.z = -Math.PI / 2; head.position.x = 55;
+        this.velocityArrow = new THREE.Group();
+        this.velocityArrow.add(shaft, head);
+        this.velocityArrow.visible = false;
+        this.group.add(this.velocityArrow);
+    }
+
+    setPosition(pos) { this.group.position.set(pos.x, pos.y, pos.z); }
+
+    updateVelocityArrow(vel, obsPos) {
+        if (Math.abs(vel) < 100) { this.velocityArrow.visible = false; return; }
+        this.velocityArrow.visible = true;
+        const angle = Math.atan2(obsPos.z - this.group.position.z, obsPos.x - this.group.position.x);
+        this.velocityArrow.rotation.y = -(vel > 0 ? angle + Math.PI : angle);
+        this.velocityArrow.scale.setScalar(Math.min(2, Math.abs(vel) / 5000 + 0.5));
+        const color = vel > 0 ? 0xff4000 : 0x00ff80;
+        this.velocityArrow.children.forEach(c => {
+            if (c.material) { c.material.color.setHex(color); c.material.emissive.setHex(color >> 2); }
+        });
+    }
+
+    update(time) {
+        if (this.beamGroup) this.beamGroup.rotation.y = time * this.rotationSpeed;
+        if (this.core) this.core.scale.setScalar(1 + 0.1 * Math.sin(time * this.rotationSpeed * 2));
+    }
+
+    getPosition() { return this.group.position.clone(); }
+
+    dispose() {
+        this.group.traverse(c => {
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose(); }
+        });
+        this.scene.remove(this.group);
+    }
+}
+
+/**
+ * Binary Star visualization - Two stars orbiting common center of mass
+ * Enhanced with:
+ * - Realistic mass ratio orbital mechanics (star 1 = 1.5M, star 2 = 1.0M)
+ * - Eclipse detection when one star blocks the other
+ * - Individual Doppler shifts from each star's radial velocity
+ * - Visual indicators showing which star is approaching/receding
+ */
+export class BinaryStarObject {
+    constructor(scene) {
+        this.scene = scene;
+        this.group = new THREE.Group();
+        this.velocityArrow = null;
+        this.stars = [];
+
+        // Orbital parameters (realistic mass ratio)
+        this.massRatio = 1.5; // M1/M2 - primary is 1.5x mass of secondary
+        this.totalMass = 2.5; // Total mass in solar masses
+        this.orbitalPeriod = 6; // seconds for visualization
+        this.baseOrbitRadius = 25; // base separation
+
+        // Calculate orbit radii based on mass ratio (center of mass)
+        // r1/r2 = M2/M1 (lighter star has larger orbit)
+        this.orbitRadius1 = this.baseOrbitRadius / (1 + this.massRatio); // Primary (closer to COM)
+        this.orbitRadius2 = this.baseOrbitRadius * this.massRatio / (1 + this.massRatio); // Secondary (further)
+
+        // Star properties
+        this.star1Color = 0xffdd44; // Yellow/white primary
+        this.star2Color = 0xaaccff; // Blue/white secondary
+        this.star1Size = 12;
+        this.star2Size = 8;
+
+        // Eclipse state
+        this.eclipseState = {
+            star1Eclipsed: false,
+            star2Eclipsed: false,
+            eclipseDepth: 0 // 0 to 1
+        };
+
+        // Current orbital state (updated each frame)
+        this.orbitalState = {
+            phase: 0,
+            star1Velocity: 0, // radial velocity (km/s)
+            star2Velocity: 0,
+            star1Approaching: false,
+            star2Approaching: false
+        };
+
+        // Wave emission indicators
+        this.emissionIndicators = [];
+
+        this.create();
+        this.scene.add(this.group);
+    }
+
+    create() {
+        // Primary star (larger, yellow)
+        this.createStar(0, this.star1Color, this.star1Size, 'Primary');
+        // Secondary star (smaller, blue)
+        this.createStar(1, this.star2Color, this.star2Size, 'Secondary');
+
+        this.createOrbitTrails();
+        this.createCenterOfMass();
+        this.createVelocityArrows();
+        this.createEclipseIndicator();
+        this.createLabel('Binary Star System', 0xffcc66);
+    }
+
+    createStar(index, color, size, name) {
+        const starGroup = new THREE.Group();
+        starGroup.userData.index = index;
+        starGroup.userData.name = name;
+        starGroup.userData.baseColor = color;
+        starGroup.userData.size = size;
+
+        // Core
+        const core = new THREE.Mesh(
+            new THREE.SphereGeometry(size, 32, 32),
+            new THREE.MeshBasicMaterial({ color })
+        );
+        core.name = 'core';
+        starGroup.add(core);
+
+        // Glow
+        const glow = new THREE.Mesh(
+            new THREE.SphereGeometry(size * 1.4, 32, 32),
+            new THREE.MeshBasicMaterial({
+                color,
+                transparent: true,
+                opacity: 0.4,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        glow.name = 'glow';
+        starGroup.add(glow);
+
+        // Velocity indicator ring (shows approach/recession)
+        const ringGeometry = new THREE.TorusGeometry(size * 1.8, 0.8, 8, 32);
+        const ringMaterial = new THREE.MeshBasicMaterial({
+            color: 0x888888,
+            transparent: true,
+            opacity: 0.5
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = Math.PI / 2;
+        ring.name = 'velocityRing';
+        starGroup.add(ring);
+
+        // Label for each star
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 128;
+        labelCanvas.height = 32;
+        const ctx = labelCanvas.getContext('2d');
+        ctx.font = 'Bold 16px Arial';
+        ctx.fillStyle = '#' + new THREE.Color(color).getHexString();
+        ctx.textAlign = 'center';
+        ctx.fillText(name, 64, 22);
+        const labelSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(labelCanvas),
+            transparent: true
+        }));
+        labelSprite.position.set(0, size + 8, 0);
+        labelSprite.scale.set(25, 6, 1);
+        labelSprite.name = 'label';
+        starGroup.add(labelSprite);
+
+        this.stars.push(starGroup);
+        this.group.add(starGroup);
+    }
+
+    createOrbitTrails() {
+        // Primary orbit trail
+        const trail1 = new THREE.Mesh(
+            new THREE.TorusGeometry(this.orbitRadius1, 0.3, 8, 64),
+            new THREE.MeshBasicMaterial({ color: this.star1Color, transparent: true, opacity: 0.15 })
+        );
+        trail1.rotation.x = Math.PI / 2;
+        trail1.name = 'orbitTrail1';
+        this.group.add(trail1);
+
+        // Secondary orbit trail
+        const trail2 = new THREE.Mesh(
+            new THREE.TorusGeometry(this.orbitRadius2, 0.3, 8, 64),
+            new THREE.MeshBasicMaterial({ color: this.star2Color, transparent: true, opacity: 0.15 })
+        );
+        trail2.rotation.x = Math.PI / 2;
+        trail2.name = 'orbitTrail2';
+        this.group.add(trail2);
+    }
+
+    createCenterOfMass() {
+        // Small marker at center of mass
+        const comGeometry = new THREE.SphereGeometry(1.5, 16, 16);
+        const comMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.6
+        });
+        this.centerOfMass = new THREE.Mesh(comGeometry, comMaterial);
+        this.centerOfMass.name = 'centerOfMass';
+        this.group.add(this.centerOfMass);
+
+        // Add label
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 64;
+        labelCanvas.height = 24;
+        const ctx = labelCanvas.getContext('2d');
+        ctx.font = '10px Arial';
+        ctx.fillStyle = '#888888';
+        ctx.textAlign = 'center';
+        ctx.fillText('COM', 32, 16);
+        const comLabel = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(labelCanvas),
+            transparent: true
+        }));
+        comLabel.position.set(0, 5, 0);
+        comLabel.scale.set(15, 5, 1);
+        this.centerOfMass.add(comLabel);
+    }
+
+    createEclipseIndicator() {
+        // Eclipse warning overlay
+        const eclipseGeometry = new THREE.PlaneGeometry(80, 20);
+        const eclipseCanvas = document.createElement('canvas');
+        eclipseCanvas.width = 256;
+        eclipseCanvas.height = 64;
+        const ctx = eclipseCanvas.getContext('2d');
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'Bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('ECLIPSE', 128, 40);
+
+        const eclipseMaterial = new THREE.MeshBasicMaterial({
+            map: new THREE.CanvasTexture(eclipseCanvas),
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide
+        });
+
+        this.eclipseIndicator = new THREE.Mesh(eclipseGeometry, eclipseMaterial);
+        this.eclipseIndicator.position.set(0, 40, 0);
+        this.eclipseIndicator.name = 'eclipseIndicator';
+        this.group.add(this.eclipseIndicator);
+    }
+
+    createLabel(text, color) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.font = 'Bold 24px Arial';
+        ctx.fillStyle = '#' + new THREE.Color(color).getHexString();
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 128, 40);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(canvas),
+            transparent: true
+        }));
+        sprite.position.set(0, 70, 0);
+        sprite.scale.set(70, 17, 1);
+        this.group.add(sprite);
+    }
+
+    createVelocityArrows() {
+        // Create individual velocity arrows for each star
+        this.velocityArrows = [];
+
+        for (let i = 0; i < 2; i++) {
+            const arrowGroup = new THREE.Group();
+
+            const shaft = new THREE.Mesh(
+                new THREE.CylinderGeometry(1, 1, 20, 8),
+                new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.7 })
+            );
+            shaft.rotation.z = -Math.PI / 2;
+            shaft.position.x = 10;
+            shaft.name = 'shaft';
+
+            const head = new THREE.Mesh(
+                new THREE.ConeGeometry(2.5, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.7 })
+            );
+            head.rotation.z = -Math.PI / 2;
+            head.position.x = 24;
+            head.name = 'head';
+
+            arrowGroup.add(shaft, head);
+            arrowGroup.visible = false;
+            this.velocityArrows.push(arrowGroup);
+            this.group.add(arrowGroup);
+        }
+
+        // Main system velocity arrow
+        const mainShaft = new THREE.Mesh(
+            new THREE.CylinderGeometry(2, 2, 50, 16),
+            new THREE.MeshPhongMaterial({ color: 0xff8000, emissive: 0x402000 })
+        );
+        mainShaft.rotation.z = -Math.PI / 2;
+        mainShaft.position.x = 25;
+
+        const mainHead = new THREE.Mesh(
+            new THREE.ConeGeometry(5, 15, 16),
+            new THREE.MeshPhongMaterial({ color: 0xff8000, emissive: 0x402000 })
+        );
+        mainHead.rotation.z = -Math.PI / 2;
+        mainHead.position.x = 55;
+
+        this.velocityArrow = new THREE.Group();
+        this.velocityArrow.add(mainShaft, mainHead);
+        this.velocityArrow.visible = false;
+        this.group.add(this.velocityArrow);
+    }
+
+    setPosition(pos) {
+        this.group.position.set(pos.x, pos.y, pos.z);
+    }
+
+    updateVelocityArrow(vel, obsPos) {
+        if (Math.abs(vel) < 100) {
+            this.velocityArrow.visible = false;
+            return;
+        }
+        this.velocityArrow.visible = true;
+        const angle = Math.atan2(obsPos.z - this.group.position.z, obsPos.x - this.group.position.x);
+        this.velocityArrow.rotation.y = -(vel > 0 ? angle + Math.PI : angle);
+        this.velocityArrow.scale.setScalar(Math.min(2, Math.abs(vel) / 5000 + 0.5));
+        const color = vel > 0 ? 0xff4000 : 0x00ff80;
+        this.velocityArrow.children.forEach(c => {
+            if (c.material) {
+                c.material.color.setHex(color);
+                if (c.material.emissive) c.material.emissive.setHex(color >> 2);
+            }
+        });
+    }
+
+    /**
+     * Update with time - handles orbital motion, velocities, and eclipses
+     * @param {number} time - Current simulation time
+     * @param {Object} observerDir - Direction to observer (optional, for eclipse calculation)
+     */
+    update(time, observerDir = null) {
+        const omega = (2 * Math.PI) / this.orbitalPeriod;
+        const phase = omega * time;
+        this.orbitalState.phase = phase;
+
+        // Calculate star positions (opposite phases, weighted by mass)
+        // Primary star (larger mass, smaller orbit)
+        const star1X = Math.cos(phase) * this.orbitRadius1;
+        const star1Z = Math.sin(phase) * this.orbitRadius1;
+
+        // Secondary star (smaller mass, larger orbit, opposite phase)
+        const star2X = Math.cos(phase + Math.PI) * this.orbitRadius2;
+        const star2Z = Math.sin(phase + Math.PI) * this.orbitRadius2;
+
+        if (this.stars[0]) {
+            this.stars[0].position.set(star1X, 0, star1Z);
+        }
+        if (this.stars[1]) {
+            this.stars[1].position.set(star2X, 0, star2Z);
+        }
+
+        // Calculate radial velocities (toward/away from observer at -X direction)
+        // Velocity is derivative of position: v = -r * omega * sin(phase)
+        // For observer along -X axis, radial velocity is X-component of velocity
+        const baseVelocity = 8000; // Base orbital velocity in km/s (scaled for visualization)
+
+        // Star 1 radial velocity (positive = receding = redshift)
+        this.orbitalState.star1Velocity = -Math.sin(phase) * this.orbitRadius1 * omega * (baseVelocity / this.orbitRadius1);
+        this.orbitalState.star1Approaching = this.orbitalState.star1Velocity < 0;
+
+        // Star 2 radial velocity (opposite phase)
+        this.orbitalState.star2Velocity = -Math.sin(phase + Math.PI) * this.orbitRadius2 * omega * (baseVelocity / this.orbitRadius2);
+        this.orbitalState.star2Approaching = this.orbitalState.star2Velocity < 0;
+
+        // Update velocity indicator rings
+        this.updateVelocityIndicators();
+
+        // Check for eclipses (when stars align along observer direction)
+        this.checkEclipse(star1X, star1Z, star2X, star2Z);
+
+        // Pulse effects
+        this.updatePulseEffects(time);
+    }
+
+    updateVelocityIndicators() {
+        // Update star 1 velocity ring
+        if (this.stars[0]) {
+            const ring1 = this.stars[0].getObjectByName('velocityRing');
+            if (ring1) {
+                const color1 = this.orbitalState.star1Approaching ? 0x4488ff : 0xff4444;
+                ring1.material.color.setHex(color1);
+                ring1.material.opacity = 0.3 + 0.4 * Math.abs(this.orbitalState.star1Velocity) / 10000;
+            }
+        }
+
+        // Update star 2 velocity ring
+        if (this.stars[1]) {
+            const ring2 = this.stars[1].getObjectByName('velocityRing');
+            if (ring2) {
+                const color2 = this.orbitalState.star2Approaching ? 0x4488ff : 0xff4444;
+                ring2.material.color.setHex(color2);
+                ring2.material.opacity = 0.3 + 0.4 * Math.abs(this.orbitalState.star2Velocity) / 10000;
+            }
+        }
+
+        // Update individual velocity arrows
+        for (let i = 0; i < 2; i++) {
+            const arrow = this.velocityArrows[i];
+            const star = this.stars[i];
+            const velocity = i === 0 ? this.orbitalState.star1Velocity : this.orbitalState.star2Velocity;
+
+            if (arrow && star && Math.abs(velocity) > 500) {
+                arrow.visible = true;
+                arrow.position.copy(star.position);
+                arrow.position.y = 5;
+
+                // Point toward observer if approaching, away if receding
+                arrow.rotation.y = velocity < 0 ? 0 : Math.PI;
+
+                // Scale by velocity
+                const scale = Math.min(1.5, Math.abs(velocity) / 8000 + 0.3);
+                arrow.scale.setScalar(scale);
+
+                // Color: blue for approach, red for recession
+                const color = velocity < 0 ? 0x4488ff : 0xff4444;
+                arrow.children.forEach(c => {
+                    if (c.material) c.material.color.setHex(color);
+                });
+            } else if (arrow) {
+                arrow.visible = false;
+            }
+        }
+    }
+
+    checkEclipse(star1X, star1Z, star2X, star2Z) {
+        // Eclipse occurs when stars are aligned along X axis (observer direction)
+        // and one is behind the other
+        const alignmentThreshold = 5; // How close in Z to count as aligned
+
+        const star1Dist = Math.abs(star1X);
+        const star2Dist = Math.abs(star2X);
+        const zDiff = Math.abs(star1Z - star2Z);
+
+        // Check if stars are roughly aligned (same Z position)
+        if (zDiff < alignmentThreshold) {
+            // Calculate eclipse depth based on alignment
+            const alignmentFactor = 1 - (zDiff / alignmentThreshold);
+
+            // Determine which star is eclipsed (the one further from observer)
+            // Observer is at -X, so larger X means further away
+            if (star1X > star2X) {
+                // Star 1 is behind star 2 (eclipsed by secondary)
+                this.eclipseState.star1Eclipsed = true;
+                this.eclipseState.star2Eclipsed = false;
+            } else {
+                // Star 2 is behind star 1 (eclipsed by primary)
+                this.eclipseState.star1Eclipsed = false;
+                this.eclipseState.star2Eclipsed = true;
+            }
+            this.eclipseState.eclipseDepth = alignmentFactor * 0.8; // Max 80% eclipse
+        } else {
+            this.eclipseState.star1Eclipsed = false;
+            this.eclipseState.star2Eclipsed = false;
+            this.eclipseState.eclipseDepth = 0;
+        }
+
+        // Update visual eclipse effects
+        this.updateEclipseVisuals();
+    }
+
+    updateEclipseVisuals() {
+        // Dim the eclipsed star
+        if (this.stars[0]) {
+            const core1 = this.stars[0].getObjectByName('core');
+            const glow1 = this.stars[0].getObjectByName('glow');
+            if (core1 && glow1) {
+                const opacity1 = this.eclipseState.star1Eclipsed ? (1 - this.eclipseState.eclipseDepth) : 1;
+                core1.material.opacity = opacity1;
+                core1.material.transparent = opacity1 < 1;
+                glow1.material.opacity = 0.4 * opacity1;
+            }
+        }
+
+        if (this.stars[1]) {
+            const core2 = this.stars[1].getObjectByName('core');
+            const glow2 = this.stars[1].getObjectByName('glow');
+            if (core2 && glow2) {
+                const opacity2 = this.eclipseState.star2Eclipsed ? (1 - this.eclipseState.eclipseDepth) : 1;
+                core2.material.opacity = opacity2;
+                core2.material.transparent = opacity2 < 1;
+                glow2.material.opacity = 0.4 * opacity2;
+            }
+        }
+
+        // Show eclipse indicator
+        if (this.eclipseIndicator) {
+            const showEclipse = this.eclipseState.eclipseDepth > 0.3;
+            this.eclipseIndicator.material.opacity = showEclipse ? Math.min(1, this.eclipseState.eclipseDepth * 1.5) : 0;
+        }
+    }
+
+    updatePulseEffects(time) {
+        // Subtle pulsing of star cores
+        const pulse1 = 1 + 0.05 * Math.sin(time * 4);
+        const pulse2 = 1 + 0.05 * Math.sin(time * 5 + 1);
+
+        if (this.stars[0]) {
+            this.stars[0].children[0].scale.setScalar(pulse1);
+        }
+        if (this.stars[1]) {
+            this.stars[1].children[0].scale.setScalar(pulse2);
+        }
+    }
+
+    /**
+     * Get current orbital state for physics calculations
+     * @returns {Object} Orbital state with velocities and eclipse info
+     */
+    getOrbitalState() {
+        return {
+            ...this.orbitalState,
+            ...this.eclipseState,
+            star1Position: this.stars[0] ? this.stars[0].position.clone() : null,
+            star2Position: this.stars[1] ? this.stars[1].position.clone() : null
+        };
+    }
+
+    /**
+     * Get the combined radial velocity (weighted average or dominant)
+     * @returns {number} Effective radial velocity in km/s
+     */
+    getEffectiveVelocity() {
+        // Weight by luminosity (size^2 as proxy)
+        const lum1 = this.eclipseState.star1Eclipsed ?
+            (1 - this.eclipseState.eclipseDepth) * this.star1Size * this.star1Size :
+            this.star1Size * this.star1Size;
+        const lum2 = this.eclipseState.star2Eclipsed ?
+            (1 - this.eclipseState.eclipseDepth) * this.star2Size * this.star2Size :
+            this.star2Size * this.star2Size;
+
+        const totalLum = lum1 + lum2;
+        if (totalLum === 0) return 0;
+
+        return (this.orbitalState.star1Velocity * lum1 + this.orbitalState.star2Velocity * lum2) / totalLum;
+    }
+
+    getPosition() {
+        return this.group.position.clone();
+    }
+
+    dispose() {
+        this.group.traverse(c => {
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) {
+                if (c.material.map) c.material.map.dispose();
+                c.material.dispose();
+            }
+        });
+        this.scene.remove(this.group);
+    }
+}
+
+/**
  * Factory function to create the appropriate source based on type
  */
 export function createSourceObject(scene, sourceType) {
@@ -1651,6 +2290,10 @@ export function createSourceObject(scene, sourceType) {
             return new QuasarObject(scene);
         case SourceType.CLUSTER:
             return new ClusterObject(scene);
+        case SourceType.PULSAR:
+            return new PulsarObject(scene);
+        case SourceType.BINARY:
+            return new BinaryStarObject(scene);
         case SourceType.GALAXY:
         default:
             return new SourceObject(scene);

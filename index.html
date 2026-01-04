@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Redshift Simulation - 3D Visualization</title>
-    <link rel="stylesheet" href="styles.css?v=17">
+    <link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body>
     <div id="app">
@@ -42,6 +42,16 @@
                         <span class="preset-name">Coma Cluster</span>
                         <span class="preset-desc">Mixed Effects</span>
                     </button>
+                    <button class="preset-btn preset-pulsar" data-preset="PULSAR" title="Crab Pulsar - Rotating Neutron Star">
+                        <span class="preset-icon">💠</span>
+                        <span class="preset-name">Crab Pulsar</span>
+                        <span class="preset-desc">Periodic Doppler</span>
+                    </button>
+                    <button class="preset-btn preset-binary" data-preset="BINARY_STAR" title="Binary Star System - Orbital Motion">
+                        <span class="preset-icon">⚛️</span>
+                        <span class="preset-name">Binary System</span>
+                        <span class="preset-desc">Orbital Doppler</span>
+                    </button>
                 </div>
             </div>
 
@@ -65,8 +75,15 @@
                 </div>
 
                 <div class="slider-group">
-                    <label for="velocity-slider">Source Velocity: <span id="velocity-value">0</span> km/s</label>
-                    <input type="range" id="velocity-slider" min="-10000" max="10000" value="0">
+                    <label for="velocity-slider">Source Velocity: <span id="velocity-value">0</span> km/s
+                        <span id="velocity-beta" class="velocity-beta">(β = 0)</span>
+                    </label>
+                    <input type="range" id="velocity-slider" min="-269000" max="269000" value="0" step="1000">
+                    <div class="velocity-scale">
+                        <span>-0.9c</span>
+                        <span>0</span>
+                        <span>+0.9c</span>
+                    </div>
                 </div>
 
                 <div class="slider-group angle-slider-group">
@@ -210,6 +227,55 @@
                 <p>Press <kbd>H</kbd> to toggle this info.</p>
             </div>
         </div>
+
+        <!-- Formula Overlay (Educational) -->
+        <div id="formula-overlay">
+            <div class="formula-card" id="formula-doppler">
+                <div class="formula-title">Relativistic Doppler Effect</div>
+                <div class="formula-equation">z = √((1+β)/(1-β)) - 1</div>
+                <div class="formula-where">where β = v/c</div>
+                <div class="formula-values">
+                    <span>v = <span id="formula-velocity">0</span> km/s</span>
+                    <span>β = <span id="formula-beta">0</span></span>
+                </div>
+            </div>
+            <div class="formula-card" id="formula-transverse">
+                <div class="formula-title">Transverse Doppler (Time Dilation)</div>
+                <div class="formula-equation">z = γ - 1 = 1/√(1-β²) - 1</div>
+                <div class="formula-values">
+                    <span>γ = <span id="formula-gamma-val">1</span></span>
+                </div>
+            </div>
+            <div class="formula-card" id="formula-cosmo">
+                <div class="formula-title">Cosmological Redshift</div>
+                <div class="formula-equation">z = a<sub>obs</sub>/a<sub>emit</sub> - 1</div>
+                <div class="formula-values">
+                    <span>a<sub>now</sub> = <span id="formula-a-now">1</span></span>
+                    <span>a<sub>emit</sub> = <span id="formula-a-emit">1</span></span>
+                </div>
+            </div>
+            <div class="formula-card" id="formula-combined">
+                <div class="formula-title">Combined (Mixed Mode)</div>
+                <div class="formula-equation">(1+z<sub>total</sub>) = (1+z<sub>D</sub>)(1+z<sub>C</sub>)</div>
+                <div class="formula-values">
+                    <span>z<sub>total</sub> = <span id="formula-z-total">0</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time Machine Control -->
+        <div id="time-control">
+            <div class="time-control-inner">
+                <button id="btn-rewind" class="time-btn" title="Rewind">⏪</button>
+                <input type="range" id="time-slider" min="0" max="100" value="0" disabled>
+                <button id="btn-fastforward" class="time-btn" title="Fast Forward">⏩</button>
+                <span id="time-display">0.0s</span>
+                <button id="btn-screenshot" class="time-btn screenshot-btn" title="Take Screenshot">📷</button>
+            </div>
+        </div>
+
+        <!-- Screenshot Flash Effect -->
+        <div id="screenshot-flash"></div>
     </div>
 
     <!-- Import Map for ES Modules -->
@@ -225,7 +291,7 @@
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Main Application - v17: 4 Presets, all English, normalized distances -->
-    <script type="module" src="src/main.js?v=17"></script>
+    <!-- Main Application - v20: Binary Star realistic orbital physics + eclipses -->
+    <script type="module" src="src/main.js?v=20"></script>
 </body>
 </html>

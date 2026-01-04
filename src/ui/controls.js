@@ -15,7 +15,7 @@ import { SimulationMode, wavelengthToRGB, wavelengthToHex, CONSTANTS } from '../
 import { PRESETS, getPreset } from './presets.js';
 import { SpectrumDisplay } from './spectrum.js';
 
-console.log('Controls.js v2.2 loaded - All features enabled');
+console.log('Controls.js v4.0 loaded - Relativistic velocities, Pulsar & Binary Star presets');
 
 export class UIController {
     constructor() {
@@ -43,6 +43,7 @@ export class UIController {
 
         this.elements.velocitySlider = document.getElementById('velocity-slider');
         this.elements.velocityValue = document.getElementById('velocity-value');
+        this.elements.velocityBeta = document.getElementById('velocity-beta');
 
         this.elements.angleSlider = document.getElementById('angle-slider');
         this.elements.angleValue = document.getElementById('angle-value');
@@ -87,6 +88,30 @@ export class UIController {
 
         // Info overlay
         this.elements.infoOverlay = document.getElementById('info-overlay');
+
+        // Formula overlay elements
+        this.elements.formulaOverlay = document.getElementById('formula-overlay');
+        this.elements.formulaDoppler = document.getElementById('formula-doppler');
+        this.elements.formulaTransverse = document.getElementById('formula-transverse');
+        this.elements.formulaCosmo = document.getElementById('formula-cosmo');
+        this.elements.formulaCombined = document.getElementById('formula-combined');
+        this.elements.formulaVelocity = document.getElementById('formula-velocity');
+        this.elements.formulaBeta = document.getElementById('formula-beta');
+        this.elements.formulaGammaVal = document.getElementById('formula-gamma-val');
+        this.elements.formulaANow = document.getElementById('formula-a-now');
+        this.elements.formulaAEmit = document.getElementById('formula-a-emit');
+        this.elements.formulaZTotal = document.getElementById('formula-z-total');
+
+        // Time control elements
+        this.elements.timeSlider = document.getElementById('time-slider');
+        this.elements.timeDisplay = document.getElementById('time-display');
+        this.elements.btnRewind = document.getElementById('btn-rewind');
+        this.elements.btnFastForward = document.getElementById('btn-fastforward');
+        this.elements.btnScreenshot = document.getElementById('btn-screenshot');
+        this.elements.screenshotFlash = document.getElementById('screenshot-flash');
+
+        // Track current mode for formula display
+        this.currentMode = SimulationMode.COSMOLOGICAL;
     }
 
     bindEvents() {
@@ -116,6 +141,11 @@ export class UIController {
         this.elements.velocitySlider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
             this.elements.velocityValue.textContent = value.toFixed(0);
+            // Update beta display (v/c where c = 299792 km/s)
+            const beta = value / CONSTANTS.c;
+            if (this.elements.velocityBeta) {
+                this.elements.velocityBeta.textContent = `(β = ${beta.toFixed(4)})`;
+            }
             this.emit('velocityChange', value);
         });
 
@@ -190,6 +220,26 @@ export class UIController {
                     this.applyPreset(presetId);
                     e.target.value = ''; // Reset dropdown
                 }
+            });
+        }
+
+        // Time control buttons
+        if (this.elements.btnRewind) {
+            this.elements.btnRewind.addEventListener('click', () => {
+                this.emit('rewind');
+            });
+        }
+
+        if (this.elements.btnFastForward) {
+            this.elements.btnFastForward.addEventListener('click', () => {
+                this.emit('fastforward');
+            });
+        }
+
+        // Screenshot button
+        if (this.elements.btnScreenshot) {
+            this.elements.btnScreenshot.addEventListener('click', () => {
+                this.emit('screenshot');
             });
         }
     }
@@ -358,6 +408,140 @@ export class UIController {
     }
 
     /**
+     * Update formula overlay based on current mode and values
+     * @param {string} mode - Current simulation mode
+     * @param {Object} values - Current physics values
+     */
+    updateFormulaOverlay(mode, values = {}) {
+        if (!this.elements.formulaOverlay) return;
+
+        this.currentMode = mode;
+
+        // Reset all cards to inactive
+        const cards = [
+            this.elements.formulaDoppler,
+            this.elements.formulaTransverse,
+            this.elements.formulaCosmo,
+            this.elements.formulaCombined
+        ];
+
+        cards.forEach(card => {
+            if (card) {
+                card.classList.remove('active');
+                card.classList.remove('hidden');
+            }
+        });
+
+        // Activate cards based on mode
+        switch (mode) {
+            case SimulationMode.DOPPLER:
+                if (this.elements.formulaDoppler) this.elements.formulaDoppler.classList.add('active');
+                if (this.elements.formulaTransverse) this.elements.formulaTransverse.classList.add('active');
+                if (this.elements.formulaCosmo) this.elements.formulaCosmo.classList.add('hidden');
+                if (this.elements.formulaCombined) this.elements.formulaCombined.classList.add('hidden');
+                break;
+
+            case SimulationMode.COSMOLOGICAL:
+                if (this.elements.formulaDoppler) this.elements.formulaDoppler.classList.add('hidden');
+                if (this.elements.formulaTransverse) this.elements.formulaTransverse.classList.add('hidden');
+                if (this.elements.formulaCosmo) this.elements.formulaCosmo.classList.add('active');
+                if (this.elements.formulaCombined) this.elements.formulaCombined.classList.add('hidden');
+                break;
+
+            case SimulationMode.MIXED:
+                if (this.elements.formulaDoppler) this.elements.formulaDoppler.classList.add('active');
+                if (this.elements.formulaCosmo) this.elements.formulaCosmo.classList.add('active');
+                if (this.elements.formulaCombined) this.elements.formulaCombined.classList.add('active');
+                if (this.elements.formulaTransverse) this.elements.formulaTransverse.classList.add('hidden');
+                break;
+        }
+
+        // Update formula values
+        this.updateFormulaValues(values);
+    }
+
+    /**
+     * Update the numerical values in the formula display
+     * @param {Object} values - Physics values to display
+     */
+    updateFormulaValues(values) {
+        if (values.velocity !== undefined && this.elements.formulaVelocity) {
+            this.elements.formulaVelocity.textContent = Math.abs(values.velocity).toFixed(0);
+        }
+        if (values.beta !== undefined && this.elements.formulaBeta) {
+            this.elements.formulaBeta.textContent = values.beta.toFixed(6);
+        }
+        if (values.gamma !== undefined && this.elements.formulaGammaVal) {
+            this.elements.formulaGammaVal.textContent = values.gamma.toFixed(4);
+        }
+        if (values.scaleFactor !== undefined && this.elements.formulaANow) {
+            this.elements.formulaANow.textContent = values.scaleFactor.toFixed(4);
+        }
+        if (values.aEmit !== undefined && this.elements.formulaAEmit) {
+            this.elements.formulaAEmit.textContent = values.aEmit.toFixed(4);
+        }
+        if (values.zTotal !== undefined && this.elements.formulaZTotal) {
+            this.elements.formulaZTotal.textContent = values.zTotal.toFixed(5);
+        }
+    }
+
+    /**
+     * Update time display
+     * @param {number} time - Current simulation time
+     * @param {number} maxTime - Maximum recorded time (for slider)
+     */
+    updateTimeDisplay(time, maxTime = 100) {
+        if (this.elements.timeDisplay) {
+            this.elements.timeDisplay.textContent = time.toFixed(1) + 's';
+        }
+        if (this.elements.timeSlider && maxTime > 0) {
+            // Update slider to show current position
+            this.elements.timeSlider.max = Math.max(100, maxTime);
+            this.elements.timeSlider.value = time;
+        }
+    }
+
+    /**
+     * Trigger screenshot flash effect
+     */
+    triggerScreenshotFlash() {
+        if (this.elements.screenshotFlash) {
+            this.elements.screenshotFlash.classList.add('flash');
+            setTimeout(() => {
+                this.elements.screenshotFlash.classList.remove('flash');
+            }, 300);
+        }
+    }
+
+    /**
+     * Show a toast notification
+     * @param {string} message - Message to display
+     * @param {number} duration - Duration in ms
+     */
+    showToast(message, duration = 3000) {
+        // Remove existing toast
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        // Create new toast
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        // Show toast
+        setTimeout(() => toast.classList.add('show'), 10);
+
+        // Hide and remove toast
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
+    /**
      * Update comparison bars for Doppler vs Cosmological contribution
      * @param {number} zDoppler - Doppler redshift
      * @param {number} zCosmo - Cosmological redshift
@@ -424,6 +608,11 @@ export class UIController {
             case 'velocity':
                 this.elements.velocitySlider.value = value;
                 this.elements.velocityValue.textContent = value.toFixed(0);
+                // Update beta display
+                const betaVal = value / CONSTANTS.c;
+                if (this.elements.velocityBeta) {
+                    this.elements.velocityBeta.textContent = `(β = ${betaVal.toFixed(4)})`;
+                }
                 break;
             case 'angle':
                 if (this.elements.angleSlider) {

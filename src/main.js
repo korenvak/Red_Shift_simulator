@@ -1,16 +1,19 @@
 /**
  * Main Application Entry Point
- * VERSION 5.0 - Multiple Source Types (Star, Quasar, Galaxy)
+ * VERSION 6.0 - Educational Features + Time Controls
  *
  * Integrates all modules into a cohesive redshift simulation
  * Features:
- * - 3 Famous astronomical presets with unique visuals
+ * - 4 Famous astronomical presets with unique visuals
  * - Full relativistic Doppler effect with angle (transverse Doppler)
  * - Emission/Absorption spectrum visualization
  * - Doppler vs Cosmological comparison visualization
+ * - Educational formula overlay showing active equations
+ * - Time machine controls (rewind/fast-forward)
+ * - Screenshot export functionality
  */
 
-console.log('Main.js v5.0 loading - Multiple Source Types');
+console.log('Main.js v7.0 loading - Binary Star realistic orbital physics + eclipses');
 
 import * as THREE from 'three';
 
@@ -101,6 +104,14 @@ class RedshiftSimulation {
         this.lastUpdateTime = 0;
         this.chartUpdateInterval = 0.1; // Update chart every 0.1s
         this.lastChartUpdate = 0;
+
+        // Time speed multiplier (1.0 = normal, < 1 = slower, > 1 = faster)
+        this.timeSpeed = 1.0;
+        this.minTimeSpeed = 0.1;
+        this.maxTimeSpeed = 5.0;
+
+        // Binary star mode flag
+        this.isBinaryMode = false;
     }
 
     initVisuals() {
@@ -172,6 +183,11 @@ class RedshiftSimulation {
         // Handle preset changes - switch source visual
         this.ui.on('presetApplied', (preset) => this.applyPreset(preset));
 
+        // Time control events
+        this.ui.on('rewind', () => this.adjustTimeSpeed(-0.5));
+        this.ui.on('fastforward', () => this.adjustTimeSpeed(0.5));
+        this.ui.on('screenshot', () => this.takeScreenshot());
+
         // Initial UI state
         this.setMode(SimulationMode.COSMOLOGICAL);
 
@@ -218,8 +234,49 @@ class RedshiftSimulation {
             console.log('Created new source visual:', preset.sourceType);
         }
 
+        // Enable/disable binary mode on chart
+        const isBinaryMode = preset.sourceType === SourceType.BINARY;
+        this.chart.setBinaryMode(isBinaryMode);
+        this.isBinaryMode = isBinaryMode;
+
         // Update position
         this.updateVisualPositions();
+    }
+
+    /**
+     * Adjust simulation time speed
+     * @param {number} delta - Amount to change speed by
+     */
+    adjustTimeSpeed(delta) {
+        this.timeSpeed = Math.max(this.minTimeSpeed, Math.min(this.maxTimeSpeed, this.timeSpeed + delta));
+        console.log('Time speed adjusted to:', this.timeSpeed.toFixed(1) + 'x');
+        this.ui.showToast(`Speed: ${this.timeSpeed.toFixed(1)}x`);
+    }
+
+    /**
+     * Take a screenshot of the simulation
+     */
+    takeScreenshot() {
+        // Render one frame to ensure we have the latest
+        this.sceneManager.render();
+
+        // Get the canvas
+        const canvas = this.sceneManager.renderer.domElement;
+
+        // Trigger flash effect
+        this.ui.triggerScreenshotFlash();
+
+        // Create download link
+        canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `redshift-simulation-${Date.now()}.png`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            this.ui.showToast('Screenshot saved!');
+        }, 'image/png');
     }
 
     startSimulation() {
@@ -361,8 +418,11 @@ class RedshiftSimulation {
         const currentTime = performance.now() / 1000;
 
         if (!this.isPaused && this.isRunning) {
+            // Apply time speed multiplier
+            const scaledDt = dt * this.timeSpeed;
+
             // Update universe
-            this.universe.update(dt);
+            this.universe.update(scaledDt);
 
             // Get UI values for live updates
             // NOTE: Velocity is NOT read here - it's set by slider callback only
@@ -442,45 +502,34 @@ class RedshiftSimulation {
             }
 
             // Calculate COSMOLOGICAL redshift
-            // In cosmological mode, redshift depends on how much space expanded
-            // during light travel. For visualization, we use a simplified model
-            // that provides immediate feedback based on distance and scale factor.
+            // Physics: z_cosmo = a_obs/a_emit - 1
+            //
+            // Light from distant objects was emitted when the universe was smaller.
+            // The further the object, the longer ago light was emitted, and thus
+            // the smaller a_emit was compared to a_obs (now).
+            //
+            // For visualization: We estimate emission time based on light travel distance
             let zCosmo = 0;
             if (this.universe.mode !== SimulationMode.DOPPLER) {
-                // Two approaches combined for better visualization:
+                // Estimate light travel time based on distance
+                // In our visual units, we scale this so that effects are visible
+                const visualLightSpeed = 100; // Mpc per simulation second (adjusted for visual effect)
+                const lightTravelTime = currentDistance / visualLightSpeed;
 
-                // 1. Direct scale factor approach (immediate feedback)
-                // z = a_now - 1 (how much space has expanded since t=0)
-                const zFromScale = this.universe.scaleFactor - 1;
+                // Emission time: when the light we're seeing now was emitted
+                const emissionTime = Math.max(0, this.universe.time - lightTravelTime);
 
-                // 2. Distance-dependent light travel approach (physical)
-                // Light from further away was emitted earlier, when universe was smaller
-                const lightTravelFactor = Math.min(1, currentDistance / 200); // Normalize to ~200 Mpc
-                const effectiveLightDelay = lightTravelFactor * this.universe.time * 0.5;
+                // Get scale factors at emission and observation (now)
+                const aEmit = this.universe.getScaleFactorAtTime(emissionTime);
+                const aObs = this.universe.scaleFactor;
 
-                if (effectiveLightDelay > 0) {
-                    const emissionTime = Math.max(0, this.universe.time - effectiveLightDelay);
-                    const aEmit = this.universe.getScaleFactorAtTime(emissionTime);
-
-                    if (aEmit > 0 && aEmit < this.universe.scaleFactor) {
-                        const zFromLightTravel = (this.universe.scaleFactor / aEmit) - 1;
-                        // Blend both approaches: more weight to light travel at larger distances
-                        zCosmo = zFromScale * (1 - lightTravelFactor) + zFromLightTravel * lightTravelFactor;
-                    } else {
-                        zCosmo = zFromScale * lightTravelFactor;
-                    }
-                } else {
-                    // At time zero, use simple scale factor
-                    zCosmo = zFromScale * lightTravelFactor;
+                // Proper cosmological redshift formula: z = a_obs/a_emit - 1
+                if (aEmit > 0) {
+                    zCosmo = (aObs / aEmit) - 1;
                 }
 
-                // Ensure minimum cosmological effect based on distance (Hubble law approximation)
-                // z ≈ H0 * d / c for small z
-                const H0 = this.universe.H0;
-                const zHubble = (H0 * currentDistance) / CONSTANTS.c;
-
-                // Use the larger of the two estimates for visible effect
-                zCosmo = Math.max(zCosmo, zHubble * 0.5); // 0.5 factor for visual balance
+                // Ensure non-negative (can happen due to timing edge cases)
+                zCosmo = Math.max(0, zCosmo);
             }
 
             const zTotal = totalRedshift(zDoppler, zCosmo);
@@ -530,14 +579,67 @@ class RedshiftSimulation {
                 time: this.universe.time
             });
 
+            // Update formula overlay with current values
+            const beta = velocity / CONSTANTS.c;
+            const aEmit = this.universe.getScaleFactorAtTime(
+                Math.max(0, this.universe.time - currentDistance / 100)
+            );
+            this.ui.updateFormulaOverlay(this.universe.mode, {
+                velocity: velocity,
+                beta: beta,
+                gamma: gamma,
+                scaleFactor: this.universe.scaleFactor,
+                aEmit: aEmit,
+                zTotal: zTotal
+            });
+
+            // Update time display
+            this.ui.updateTimeDisplay(this.universe.time);
+
             // Update chart periodically with effect separation
             if (currentTime - this.lastChartUpdate > this.chartUpdateInterval) {
-                this.chart.addDataPoint(
-                    this.universe.time,
-                    wavelengthObs,           // Total observed wavelength
-                    wavelengthDopplerOnly,   // Doppler effect only
-                    this.restWavelength      // Rest wavelength (constant)
-                );
+                if (this.isBinaryMode && this.sourceVisual.getOrbitalState) {
+                    // Binary star mode - get individual star velocities and calculate their wavelengths
+                    const orbitalState = this.sourceVisual.getOrbitalState();
+
+                    // Calculate individual star wavelengths based on their velocities
+                    const star1Velocity = orbitalState.star1Velocity || 0;
+                    const star2Velocity = orbitalState.star2Velocity || 0;
+
+                    // Calculate Doppler shift for each star
+                    const star1Beta = star1Velocity / CONSTANTS.c;
+                    const star2Beta = star2Velocity / CONSTANTS.c;
+
+                    // Relativistic Doppler: λ_obs = λ_rest * sqrt((1+β)/(1-β))
+                    const star1Factor = Math.sqrt((1 + star1Beta) / (1 - star1Beta));
+                    const star2Factor = Math.sqrt((1 + star2Beta) / (1 - star2Beta));
+
+                    const star1Wavelength = this.restWavelength * star1Factor;
+                    const star2Wavelength = this.restWavelength * star2Factor;
+
+                    // Get eclipse state
+                    const eclipseDepth = orbitalState.eclipseDepth || 0;
+                    const star1Eclipsed = orbitalState.star1Eclipsed || false;
+                    const star2Eclipsed = orbitalState.star2Eclipsed || false;
+
+                    this.chart.addBinaryDataPoint(
+                        this.universe.time,
+                        star1Wavelength,
+                        star2Wavelength,
+                        this.restWavelength,
+                        eclipseDepth,
+                        star1Eclipsed,
+                        star2Eclipsed
+                    );
+                } else {
+                    // Standard mode
+                    this.chart.addDataPoint(
+                        this.universe.time,
+                        wavelengthObs,           // Total observed wavelength
+                        wavelengthDopplerOnly,   // Doppler effect only
+                        this.restWavelength      // Rest wavelength (constant)
+                    );
+                }
                 this.lastChartUpdate = currentTime;
             }
         }

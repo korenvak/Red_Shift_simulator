@@ -1,6 +1,6 @@
 /**
  * Physics Module - Complete Relativistic Redshift Calculations
- * VERSION 2.0 - Full General and Special Relativity
+ * VERSION 3.0 - Full General and Special Relativity with Proper Unit Documentation
  *
  * This module handles ALL types of redshift:
  * 1. Doppler Effect (Special Relativity) - relative motion
@@ -8,29 +8,105 @@
  * 3. Gravitational Redshift (General Relativity) - escape from gravity wells
  * 4. Transverse Doppler Effect - time dilation at perpendicular motion
  *
- * Key formulas:
- * - Relativistic Doppler: z_d = γ(1 + β·cos(θ)) - 1, where γ = 1/√(1-β²)
- * - Cosmological: z_c = a_obs/a_emit - 1
- * - Gravitational: z_g = 1/√(1 - r_s/r) - 1, where r_s = 2GM/c²
- * - Total: (1+z_total) = (1+z_d)(1+z_c)(1+z_g)
+ * ============================================================================
+ * KEY FORMULAS
+ * ============================================================================
+ *
+ * DOPPLER (Relativistic):
+ *   z_doppler = √((1+β)/(1-β)) - 1   where β = v/c
+ *   For radial motion only. Positive z = receding (redshift)
+ *
+ * TRANSVERSE DOPPLER (Time Dilation):
+ *   z_transverse = γ - 1 = 1/√(1-β²) - 1
+ *   Pure time dilation when source moves perpendicular to line of sight
+ *
+ * GENERAL DOPPLER (with angle):
+ *   λ_obs/λ_emit = γ(1 + β·cos(θ))
+ *   θ = 0: receding, θ = π: approaching, θ = π/2: transverse
+ *
+ * COSMOLOGICAL:
+ *   z_cosmo = a_obs/a_emit - 1
+ *   a(t) = scale factor of universe at time t
+ *
+ * GRAVITATIONAL:
+ *   z_grav = 1/√(1 - r_s/r) - 1   where r_s = 2GM/c² (Schwarzschild radius)
+ *
+ * COMBINED:
+ *   (1+z_total) = (1+z_doppler)(1+z_cosmo)(1+z_grav)
+ *
+ * ============================================================================
+ * UNIT CONVENTIONS
+ * ============================================================================
+ *
+ * Distances:
+ *   - User-facing: Megaparsecs (Mpc)
+ *   - Visualization: Arbitrary units scaled for display
+ *
+ * Velocities:
+ *   - User-facing: km/s (kilometers per second)
+ *   - β = v/c is dimensionless
+ *
+ * Hubble Constant H0:
+ *   - User-facing: km/s/Mpc (e.g., H0 ≈ 70 km/s/Mpc)
+ *   - Physical SI: ~2.27×10⁻¹⁸ s⁻¹ for H0=70 (far too slow to visualize!)
+ *   - Simulation: H0_sim = H0 / 500 (dimensionless per simulation second)
+ *
+ *   The VISUAL_SCALE_FACTOR = 500 speeds up cosmic expansion by a factor
+ *   of ~10¹⁹ so that changes in scale factor are visible on human timescales.
+ *   This is purely for educational visualization - real cosmic expansion
+ *   takes billions of years.
+ *
+ * Wavelengths:
+ *   - All wavelengths in nanometers (nm)
+ *   - Visible spectrum: 380-780 nm
+ *   - H-alpha reference line: 656.28 nm
+ *
+ * Time:
+ *   - Simulation time in seconds (for animation)
+ *   - Not meant to represent real cosmic time
+ *
+ * ============================================================================
  */
 
-console.log('Physics.js v2.0 loaded - Full Relativistic Physics');
+console.log('Physics.js v3.0 loaded - Full Relativistic Physics with Proper Units');
 
-// Physical constants
+// ============================================================================
+// PHYSICAL CONSTANTS WITH UNITS
+// ============================================================================
+//
+// All constants are documented with their SI units and common alternatives.
+// The simulation uses mixed units for practical reasons:
+// - Distances in Mpc (astronomical convention)
+// - Velocities in km/s (astronomical convention)
+// - Wavelengths in nm (optical astronomy convention)
+//
 export const CONSTANTS = {
-    c: 299792.458,            // Speed of light in km/s
-    c_m: 299792458,           // Speed of light in m/s
-    G: 6.67430e-11,           // Gravitational constant in m³/(kg·s²)
-    H0_default: 70.0,         // Default Hubble constant km/s/Mpc
-    WAVELENGTH_HALPHA: 656.28,// H-alpha emission line in nm
+    // Speed of light
+    c: 299792.458,            // km/s - used for velocity/c calculations
+    c_m: 299792458,           // m/s - SI units for GR calculations
+
+    // Gravitational constant
+    G: 6.67430e-11,           // m³/(kg·s²) - SI units
+
+    // Hubble constant
+    // H0 = 70 km/s/Mpc means a galaxy 1 Mpc away recedes at 70 km/s
+    // In SI: H0 = 70 * (1000 m/s) / (3.086e22 m) ≈ 2.27×10⁻¹⁸ s⁻¹
+    H0_default: 70.0,         // km/s/Mpc (standard astronomical units)
+
+    // Spectral lines (nanometers)
+    WAVELENGTH_HALPHA: 656.28,// H-alpha emission line - red hydrogen line
     WAVELENGTH_MIN: 380,      // Visible spectrum minimum (violet)
     WAVELENGTH_MAX: 750,      // Visible spectrum maximum (red)
-    M_SUN: 1.989e30,          // Solar mass in kg
-    M_EARTH: 5.972e24,        // Earth mass in kg
-    M_GALAXY: 1e12 * 1.989e30,// Typical galaxy mass (~10^12 solar masses)
-    PC_TO_M: 3.086e16,        // Parsec to meters
-    MPC_TO_M: 3.086e22,       // Megaparsec to meters
+
+    // Masses (kilograms)
+    M_SUN: 1.989e30,          // Solar mass
+    M_EARTH: 5.972e24,        // Earth mass
+    M_GALAXY: 1e12 * 1.989e30,// Typical galaxy mass (~10¹² M_sun)
+
+    // Distance conversions
+    PC_TO_M: 3.086e16,        // 1 parsec = 3.086×10¹⁶ meters
+    MPC_TO_M: 3.086e22,       // 1 megaparsec = 3.086×10²² meters
+    LY_TO_M: 9.461e15,        // 1 light-year = 9.461×10¹⁵ meters
 };
 
 /**
@@ -272,20 +348,30 @@ export function hubbleVelocity(distance, H0 = CONSTANTS.H0_default) {
 /**
  * Calculate the cosmological redshift from travel in expanding universe
  *
- * @param {number} emissionDistance - Comoving distance when emitted
+ * Physics: z = a_obs/a_emit - 1
+ *
+ * For de Sitter (exponential) expansion: a(t) = a(0)·exp(H·t)
+ * Using the same VISUAL_SCALE_FACTOR as universe.js for consistency
+ *
+ * @param {number} emissionDistance - Comoving distance when emitted (not used, kept for API)
  * @param {number} currentTime - Current time in simulation
  * @param {number} emissionTime - Time when light was emitted
- * @param {number} H0 - Hubble constant
- * @returns {number} Cosmological redshift
+ * @param {number} H0 - Hubble constant in km/s/Mpc
+ * @returns {number} Cosmological redshift z
  */
 export function cosmologicalRedshiftFromTravel(emissionDistance, currentTime, emissionTime, H0) {
-    const H0_normalized = H0 / 1000;
+    // Same visual scaling as universe.js
+    const VISUAL_SCALE_FACTOR = 500;
+    const H0_sim = H0 / VISUAL_SCALE_FACTOR;
 
-    const aEmit = 1.0 + H0_normalized * emissionTime;
-    const aNow = 1.0 + H0_normalized * currentTime;
+    // Exponential scale factor evolution: a(t) = a(0) * exp(H0_sim * t)
+    // Assuming a(0) = 1 at t = 0
+    const aEmit = Math.exp(H0_sim * emissionTime);
+    const aNow = Math.exp(H0_sim * currentTime);
 
     if (aEmit <= 0) return 0;
 
+    // z = a_obs/a_emit - 1 = exp(H0_sim * (t_now - t_emit)) - 1
     return (aNow / aEmit) - 1;
 }
 
