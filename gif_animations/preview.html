@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redshift Animations Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0f;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 40px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #00ffff;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        
+        .animations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 40px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .animation-card {
+            background: #15151f;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #2a2a3a;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .animation-card h2 {
+            padding: 20px;
+            background: linear-gradient(90deg, #1a1a2e, #16162a);
+            color: #ffffff;
+            font-size: 1.3rem;
+            border-bottom: 1px solid #2a2a3a;
+        }
+        
+        .animation-card h2 span {
+            color: #00ff99;
+            font-weight: normal;
+            font-size: 0.9rem;
+            margin-left: 10px;
+        }
+        
+        .animation-container {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+        }
+        
+        .animation-container img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .animation-info {
+            padding: 20px;
+            background: #12121a;
+        }
+        
+        .animation-info p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .formula {
+            background: #1a1a25;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #ff9900;
+            margin-top: 10px;
+        }
+        
+        .params {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .param {
+            background: #20202d;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .param-label {
+            color: #888;
+        }
+        
+        .param-value {
+            color: #00ffff;
+            margin-left: 5px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error-msg {
+            color: #ff6666;
+            padding: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌌 Redshift Physics Animations</h1>
+    
+    <div class="animations-grid">
+        <!-- Doppler -->
+        <div class="animation-card">
+            <h2>1. Doppler Redshift <span>Moving Source</span></h2>
+            <div class="animation-container">
+                <img src="output/doppler.gif" alt="Doppler Redshift Animation" 
+                     onerror="this.parentElement.innerHTML='<p class=\'error-msg\'>GIF not found. Run the generator first.</p>'">
+            </div>
+            <div class="animation-info">
+                <p>Wavefronts from a moving source are compressed in the direction of motion (blueshift) 
+                   and stretched behind (redshift).</p>
+                <div class="formula">z = √((1+β)/(1-β)) - 1, where β = v/c</div>
+                <div class="params">
+                    <div class="param"><span class="param-label">Velocity:</span><span class="param-value">~0.2c</span></div>
+                    <div class="param"><span class="param-label">Rest λ:</span><span class="param-value">500 nm</span></div>
+                    <div class="param"><span class="param-label">Loop:</span><span class="param-value">5s</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cosmological -->
+        <div class="animation-card">
+            <h2>2. Cosmological Redshift <span>Expanding Space</span></h2>
+            <div class="animation-container">
+                <img src="output/cosmological.gif" alt="Cosmological Redshift Animation"
+                     onerror="this.parentElement.innerHTML='<p class=\'error-msg\'>GIF not found. Run the generator first.</p>'">
+            </div>
+            <div class="animation-info">
+                <p>Space itself expands, stretching the wavelength of light traveling through it. 
+                   The grid represents comoving coordinates.</p>
+                <div class="formula">λ_obs = λ_emit × a(t), where a(t) is the scale factor</div>
+                <div class="params">
+                    <div class="param"><span class="param-label">Rest λ:</span><span class="param-value">480 nm</span></div>
+                    <div class="param"><span class="param-label">Max Scale:</span><span class="param-value">2.0×</span></div>
+                    <div class="param"><span class="param-label">Loop:</span><span class="param-value">5s (breathing)</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gravitational -->
+        <div class="animation-card">
+            <h2>3. Gravitational Redshift <span>Potential Well</span></h2>
+            <div class="animation-container">
+                <img src="output/gravitational.gif" alt="Gravitational Redshift Animation"
+                     onerror="this.parentElement.innerHTML='<p class=\'error-msg\'>GIF not found. Run the generator first.</p>'">
+            </div>
+            <div class="animation-info">
+                <p>A photon climbing out of a gravitational potential well loses energy, 
+                   causing its wavelength to increase (redshift).</p>
+                <div class="formula">z = 1/√(1 - rₛ/r) - 1, where rₛ = 2GM/c²</div>
+                <div class="params">
+                    <div class="param"><span class="param-label">Rest λ:</span><span class="param-value">450 nm</span></div>
+                    <div class="param"><span class="param-label">Potential:</span><span class="param-value">U(r) = -GM/r</span></div>
+                    <div class="param"><span class="param-label">Loop:</span><span class="param-value">5s</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>Generated with redshift_animations.py | Resolution: 1920×1080 @ 25fps</p>
+        <p>Perfect for physics lectures on black PowerPoint slides</p>
+    </footer>
+</body>
+</html>
+

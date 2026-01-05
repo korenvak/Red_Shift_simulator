@@ -44,9 +44,11 @@ export class SceneManager {
         this.camera.lookAt(100, 0, 0);
 
         // Create renderer
+        // preserveDrawingBuffer is needed for screenshot/GIF recording
         this.renderer = new THREE.WebGLRenderer({
             antialias: true,
-            alpha: true
+            alpha: true,
+            preserveDrawingBuffer: true
         });
         this.renderer.setSize(this.width, this.height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

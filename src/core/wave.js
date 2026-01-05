@@ -376,16 +376,15 @@ export class Source {
             // Only set orbital parameters once when velocity first set or significantly changes
             if (!this.orbitalEnabled || velocityChanged) {
                 this.orbitalEnabled = true;
-                // Orbit radius: larger velocity = larger visible orbit
-                // Increased from 0.02 to 0.05 for more visible motion
-                this.orbitRadius = Math.abs(radial) * 0.05; // visual units
+                // Large orbit radius for clearly visible circular motion
+                this.orbitRadius = 80; // Big circles around the base position
                 // Set phase ONCE (not every frame!)
                 this.orbitalPhase = Math.random() * Math.PI * 2;
-                // Period set ONCE - slower period (10s) for easier visualization
-                this.orbitalPeriod = 10;
+                // Moderate period (5s) for clear visualization
+                this.orbitalPeriod = 5;
             }
-            // Always update orbit radius based on current velocity
-            this.orbitRadius = Math.abs(radial) * 0.05;
+            // Keep orbit radius consistent
+            this.orbitRadius = 80;
         } else {
             this.orbitalEnabled = false;
             this.orbitRadius = 0;
@@ -442,60 +441,36 @@ export class Source {
     }
 
     /**
-     * Get current 3D position
+     * Get current 3D position (VISUAL position - always based on slider)
+     * Physics calculations use separate methods for redshift computation
      * @returns {{x: number, y: number, z: number}}
      */
     getPosition() {
-        const scaleFactor = this.universe.scaleFactor;
-        const mode = this.universe.mode;
-
         // Update velocity first (for orbital motion)
         this.updateRadialVelocity();
 
-        // Base position along X axis (toward observer at origin)
+        // VISUAL position always uses slider distance directly
+        // This keeps the visual representation consistent across all modes
         let baseDistance = this.comovingDistance;
 
-        // Apply cosmological expansion (space stretches) - ONLY in Cosmological/Mixed mode
-        if (mode === SimulationMode.COSMOLOGICAL || mode === SimulationMode.MIXED) {
-            baseDistance = this.comovingDistance * scaleFactor;
-        }
+        let posX, posZ;
 
-        // Calculate position
-        let posX = baseDistance * Math.cos(this.angle);
-        let posZ = baseDistance * Math.sin(this.angle);
-
-        // Add peculiar motion displacement (Doppler effect - actual motion through space)
-        // This is TRUE motion, not expansion of space
-        const isDopplerMode = (mode === SimulationMode.DOPPLER || mode === SimulationMode.MIXED);
-        if (isDopplerMode) {
+        // Add orbital motion for visual effect (applies in all modes when velocity is set)
+        // The source orbits AROUND the observer in a circle
+        if (this.orbitalEnabled) {
             const time = this.universe.time;
+            const omega = (2 * Math.PI) / this.orbitalPeriod;
+            const phase = omega * time + this.orbitalPhase;
 
-            if (this.orbitalEnabled) {
-                const omega = (2 * Math.PI) / this.orbitalPeriod;
-                const phase = omega * time + this.orbitalPhase;
-
-                // PURE orbital motion - NO net drift!
-                // The source orbits around its base position, creating varying radial velocity
-                // Positive baseVelocity = orbit favors receding motion (redshift)
-                // Negative baseVelocity = orbit favors approaching motion (blueshift)
-
-                // Orbital position offset (elliptical path)
-                // The orbit is oriented so that radial motion dominates
-                const orbitX = this.orbitRadius * Math.cos(phase);  // radial component
-                const orbitZ = this.orbitRadius * 0.6 * Math.sin(phase); // tangential (smaller for more radial motion)
-
-                // Apply to position
-                // Radial direction (toward/away from observer)
-                const radialDir = { x: Math.cos(this.angle), z: Math.sin(this.angle) };
-                // Tangential direction (perpendicular)
-                const tangentDir = { x: -Math.sin(this.angle), z: Math.cos(this.angle) };
-
-                // Pure orbital motion, no drift - source stays near its comoving position
-                posX += radialDir.x * orbitX + tangentDir.x * orbitZ;
-                posZ += radialDir.z * orbitX + tangentDir.z * orbitZ;
-            }
-            // If orbitalEnabled is false but velocity is set, the source stays stationary
-            // (velocity only affects the Doppler calculation, not position in this case)
+            // TRUE 2D circular orbital motion AROUND THE OBSERVER
+            // The source moves in a circle with the observer at the center
+            // Distance from observer stays constant (= baseDistance from slider)
+            posX = baseDistance * Math.cos(phase);
+            posZ = baseDistance * Math.sin(phase);
+        } else {
+            // No orbital motion - static position along X axis
+            posX = baseDistance * Math.cos(this.angle);
+            posZ = baseDistance * Math.sin(this.angle);
         }
 
         // Ensure minimum distance (don't pass through observer)
@@ -565,20 +540,12 @@ export class Source {
     /**
      * Get position with Hubble flow only (no peculiar velocity)
      * Used for ghost galaxy visualization
+     * Now uses fixed visual distance for consistency
      * @returns {{x: number, y: number, z: number}}
      */
     getHubbleFlowPosition() {
-        const scaleFactor = this.universe.scaleFactor;
-        const mode = this.universe.mode;
-
-        // Physical distance with cosmological expansion only
-        let physicalDistance = this.comovingDistance;
-
-        if (mode === SimulationMode.COSMOLOGICAL || mode === SimulationMode.MIXED) {
-            physicalDistance = this.comovingDistance * scaleFactor;
-        }
-
-        physicalDistance = Math.max(10, physicalDistance);
+        // Use slider distance for visual consistency
+        let physicalDistance = Math.max(10, this.comovingDistance);
 
         return {
             x: physicalDistance * Math.cos(this.angle),

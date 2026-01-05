@@ -42,6 +42,9 @@ import { ObserverObject, SourceObject, LineOfSight, GhostGalaxy, createSourceObj
 import { SineWaveRenderer } from './visual/wave-renderer.js';
 import { DistanceScale } from './visual/distance-scale.js';
 
+// Recording module
+import { GifRecorder } from './recording/gif-recorder.js';
+
 // UI modules
 import { UIController } from './ui/controls.js';
 import { WavelengthChart } from './ui/charts.js';
@@ -187,6 +190,9 @@ class RedshiftSimulation {
         this.ui.on('rewind', () => this.adjustTimeSpeed(-0.5));
         this.ui.on('fastforward', () => this.adjustTimeSpeed(0.5));
         this.ui.on('screenshot', () => this.takeScreenshot());
+        
+        // GIF Recording setup
+        this.initGifRecorder();
 
         // Initial UI state
         this.setMode(SimulationMode.COSMOLOGICAL);
@@ -205,6 +211,9 @@ class RedshiftSimulation {
         if (this.isRunning) {
             this.reset();
         }
+        
+        // Update visual positions
+        this.updateVisualPositions();
     }
 
     /**
@@ -277,6 +286,96 @@ class RedshiftSimulation {
 
             this.ui.showToast('Screenshot saved!');
         }, 'image/png');
+    }
+    
+    /**
+     * Initialize GIF recorder
+     */
+    initGifRecorder() {
+        // Get UI elements
+        this.recordButton = document.getElementById('btn-record-gif');
+        this.recordStatus = document.getElementById('record-status');
+        
+        if (!this.recordButton) {
+            console.warn('Record button not found');
+            return;
+        }
+        
+        // Create recorder instance
+        this.gifRecorder = new GifRecorder({
+            fps: 10,
+            quality: 10,
+            maxFrames: 300, // Max 30 seconds
+            onProgress: (info) => this.onRecordingProgress(info),
+            onFinished: (info) => this.onRecordingFinished(info),
+            onError: (err) => this.onRecordingError(err)
+        });
+        
+        // Bind click event
+        this.recordButton.addEventListener('click', () => this.toggleRecording());
+        
+        console.log('GIF Recorder initialized');
+    }
+    
+    /**
+     * Toggle GIF recording on/off
+     */
+    toggleRecording() {
+        if (!this.gifRecorder) return;
+        
+        if (this.gifRecorder.getIsRecording()) {
+            // Stop recording
+            this.gifRecorder.stopRecording();
+            this.recordButton.classList.remove('recording');
+            this.recordButton.title = 'Record GIF';
+        } else {
+            // Start recording
+            const canvas = this.sceneManager.renderer.domElement;
+            this.gifRecorder.startRecording(canvas);
+            this.recordButton.classList.add('recording');
+            this.recordButton.title = 'Stop Recording';
+            
+            // Auto-start simulation if not running
+            if (!this.isRunning) {
+                this.startSimulation();
+            }
+            
+            this.ui.showToast('Recording started! Click again to stop.');
+        }
+    }
+    
+    /**
+     * Handle recording progress updates
+     */
+    onRecordingProgress(info) {
+        if (this.recordStatus) {
+            this.recordStatus.textContent = info.message;
+            this.recordStatus.classList.add('active');
+        }
+    }
+    
+    /**
+     * Handle recording completion
+     */
+    onRecordingFinished(info) {
+        if (this.recordStatus) {
+            this.recordStatus.textContent = '';
+            this.recordStatus.classList.remove('active');
+        }
+        this.recordButton.classList.remove('recording');
+        this.ui.showToast(`GIF saved! ${info.frameCount} frames, ${info.duration.toFixed(1)}s`);
+    }
+    
+    /**
+     * Handle recording errors
+     */
+    onRecordingError(err) {
+        console.error('Recording error:', err);
+        if (this.recordStatus) {
+            this.recordStatus.textContent = 'Error!';
+        }
+        this.recordButton.classList.remove('recording');
+        this.ui.showToast('Recording failed: ' + err.message);
     }
 
     startSimulation() {
@@ -676,6 +775,11 @@ class RedshiftSimulation {
         this.ghostGalaxy.dispose();
         this.sceneManager.dispose();
         this.chart.dispose();
+        
+        // Clean up GIF recorder
+        if (this.gifRecorder) {
+            this.gifRecorder.dispose();
+        }
     }
 }
 

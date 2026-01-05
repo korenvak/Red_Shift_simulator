@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Redshift Simulation - 3D Visualization</title>
-    <link rel="stylesheet" href="styles.css?v=19">
+    <link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body>
     <div id="app">
@@ -271,6 +271,8 @@
                 <button id="btn-fastforward" class="time-btn" title="Fast Forward">⏩</button>
                 <span id="time-display">0.0s</span>
                 <button id="btn-screenshot" class="time-btn screenshot-btn" title="Take Screenshot">📷</button>
+                <button id="btn-record-gif" class="time-btn record-btn" title="Record GIF">🎬</button>
+                <span id="record-status" class="record-status"></span>
             </div>
         </div>
 
@@ -290,8 +292,11 @@
 
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- GIF.js for recording -->
+    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
 
-    <!-- Main Application - v20: Binary Star realistic orbital physics + eclipses -->
-    <script type="module" src="src/main.js?v=20"></script>
+    <!-- Main Application - v28: Source orbits around observer -->
+    <script type="module" src="src/main.js?v=28"></script>
 </body>
 </html>

@@ -867,6 +867,57 @@ body {
     box-shadow: 0 0 15px rgba(0, 176, 80, 0.5);
 }
 
+/* GIF Recording Button */
+.time-btn.record-btn {
+    background: linear-gradient(135deg, #b03030 0%, #802020 100%);
+    margin-left: 5px;
+    position: relative;
+}
+
+.time-btn.record-btn:hover {
+    background: linear-gradient(135deg, #d04040 0%, #a03030 100%);
+    box-shadow: 0 0 15px rgba(176, 48, 48, 0.5);
+}
+
+.time-btn.record-btn.recording {
+    background: linear-gradient(135deg, #ff4040 0%, #cc2020 100%);
+    animation: recording-pulse 1s ease-in-out infinite;
+}
+
+.time-btn.record-btn.recording::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    background: #ff0000;
+    border-radius: 50%;
+    animation: record-dot-blink 0.5s ease-in-out infinite;
+}
+
+@keyframes recording-pulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(255, 64, 64, 0.5); }
+    50% { box-shadow: 0 0 25px rgba(255, 64, 64, 0.8); }
+}
+
+@keyframes record-dot-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.record-status {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: 8px;
+    min-width: 120px;
+}
+
+.record-status.active {
+    color: #ff6060;
+    font-weight: bold;
+}
+
 #time-slider {
     width: 200px;
     height: 6px;
